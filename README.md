@@ -1,28 +1,78 @@
 # IVA — WhatsApp channel
 
-Conversational food ordering for Ivar on WhatsApp. This repository holds **only the
-WhatsApp channel** (webhook, conversation engine, intent layer). Catalog, customers,
-cart, orders, payments and delivery belong to the organization's backend and are
-reached **only** through the Backend Port (`apps/conversations/backend_port.py`).
+Conversational food ordering for Ivar on WhatsApp. Customers chat in English, Telugu or
+Hindi (native script or romanized) to browse the menu, search products, build a cart,
+check out and track an order, or paste a meal plan from the AI Planner on the website.
+
+This repository holds **only the WhatsApp channel** (webhook, conversation engine,
+intent layer). Catalog, customers, cart, orders, payments and delivery belong to the
+organization's backend and are reached **only** through the Backend Port
+(`apps/conversations/backend_port.py`). Until the real backend exists, a deterministic
+in-memory Fake Backend stands in for it (development and tests only; production refuses it).
+
+**Stack:** Python 3.13, Django 5.2, PostgreSQL (psycopg 3), Redis, Celery, Meta WhatsApp
+Cloud API.
+
+## How it works
+
+```
+WhatsApp user ─► Meta Cloud API ─► POST /webhooks/whatsapp/   (signature-verified)
+                                        │
+                        Celery task (or inline in dev)       claim → per-customer lock
+                                        │                    → rate limit → at-most-once
+                     intent layer (apps/ai): rules → fuzzy → optional LLM proposal
+                                        │
+                     conversation engine (apps/conversations) ─► Backend Port ─► backend
+                                        │
+                              renderers ─► WhatsApp Cloud API reply
+```
+
+- The LLM (none is configured yet) may only *propose* an intent; it never writes data or
+  decides price, stock, payment or order status.
+- Message text is never stored or logged; phone numbers are masked in logs and
+  pseudonymized (HMAC) in records.
 
 ## Layout
 
 | Path | Delivered? | Purpose |
 |---|---|---|
-| `apps/iva_common/` | yes | Shared helpers: log masking, money formatting |
-| `apps/conversations/` | yes | Backend Port contract, Fake Backend, adapter loader (engine in S3) |
-| `apps/whatsapp/`, `apps/ai/` | yes | Added in S2 / S4 |
+| `apps/iva_common/` | yes | Shared helpers: log masking, pseudonyms, money formatting, HTTP/TLS transport |
+| `apps/conversations/` | yes | Backend Port contract, Fake Backend, conversation engine, renderers, session state, retention |
+| `apps/whatsapp/` | yes | Webhook, signature check, parser, Cloud API client, Celery tasks, locks, rate limiting |
+| `apps/ai/` | yes | Intent layer: rules, fuzzy matching, language detection, quantities, plan-message parser, LLM port |
 | `config/`, `host/` | **no** | Disposable host project: settings, health checks |
+| `Reference/` | no | Original specification PDF |
 
 The delivered packages never import `config` or `host`
 (`apps/iva_common/tests/test_portability.py` enforces this). Their only integration
 points are Django settings and the Backend Port. There is no admin panel of any kind.
 
+## Documentation
+
+| File | For |
+|---|---|
+| `ARCHITECTURE.md` | Design, contract decisions, open requests for the backend team |
+| `HANDOVER.md` | Backend engineer wiring the real backend in place of the Fake Backend |
+| `PLANNER_INTEGRATION.md` | Website team: the `IVA PLAN v1` message format from the AI Planner |
+| `CLAUDE.md` | Project rules and the detailed stage/status log |
+
 ## Stage status
 
-S1–S4 are built and verified against the organization's PostgreSQL and Redis. S5
-(hardening: per-customer ordering, rate limiting, deploy check, end-to-end and failure
-tests) is in progress. See `CLAUDE.md`'s status table for the current detail.
+S1–S4 (host project, WhatsApp webhook and Cloud API client, conversation engine, intent
+layer) are built and verified against PostgreSQL and Redis. The LLM provider is not yet
+chosen, so the intent layer runs on rules and fuzzy matching only. S5 (hardening:
+per-customer ordering, rate limiting, deploy check, end-to-end and failure tests) is in
+progress. See `CLAUDE.md`'s status table for the current detail.
+
+## Security
+
+- **Never commit `.env`.** It is git-ignored; use `.env.example` (placeholders only) as
+  the template. If a real secret is ever committed, rotate it.
+- Production (`config.settings.prod`) refuses to start with the Fake Backend, inline
+  processing, wildcard hosts/origins, missing credentials, or an `IVA_PSEUDONYM_KEY`
+  that is short or equal to `DJANGO_SECRET_KEY`.
+- Inbound webhooks are verified with `X-Hub-Signature-256` using `WHATSAPP_APP_SECRET`.
+- Do not rotate `IVA_PSEUDONYM_KEY` casually: it resets all conversation records and sessions.
 
 ## Setup (Windows, PowerShell)
 
