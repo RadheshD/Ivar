@@ -1,0 +1,1570 @@
+{
+  "_note": "Development fixture. Prices and nutrition unverified. Not for production.",
+  "groups": [
+    {
+      "id": "fresh",
+      "name": "Fresh & Ready to Eat",
+      "sort_order": 1
+    },
+    {
+      "id": "packaged",
+      "name": "Packaged Foods",
+      "sort_order": 2
+    }
+  ],
+  "categories": [
+    {
+      "id": "cafe-favourites",
+      "name": "Café Favourites",
+      "parent_id": "fresh",
+      "sort_order": 1
+    },
+    {
+      "id": "protein-bowls",
+      "name": "Protein Bowls",
+      "parent_id": "fresh",
+      "sort_order": 2
+    },
+    {
+      "id": "non-veg-snacks",
+      "name": "Non-Veg Snacks",
+      "parent_id": "fresh",
+      "sort_order": 3
+    },
+    {
+      "id": "wellness-shots",
+      "name": "Wellness Shots",
+      "parent_id": "fresh",
+      "sort_order": 4
+    },
+    {
+      "id": "breakfast-grains",
+      "name": "Breakfast & Grains",
+      "parent_id": "packaged",
+      "sort_order": 1
+    },
+    {
+      "id": "protein-active-nutrition",
+      "name": "Protein & Active Nutrition",
+      "parent_id": "packaged",
+      "sort_order": 2
+    },
+    {
+      "id": "nuts-seeds-snacks",
+      "name": "Nuts, Seeds & Snacks",
+      "parent_id": "packaged",
+      "sort_order": 3
+    },
+    {
+      "id": "cooking-essentials",
+      "name": "Cooking Essentials",
+      "parent_id": "packaged",
+      "sort_order": 4
+    },
+    {
+      "id": "teas-beverages",
+      "name": "Teas & Beverages",
+      "parent_id": "packaged",
+      "sort_order": 5
+    },
+    {
+      "id": "ready-mixes",
+      "name": "Ready Mixes",
+      "parent_id": "packaged",
+      "sort_order": 6
+    },
+    {
+      "id": "energy-bites-cookies",
+      "name": "Energy Bites & Cookies",
+      "parent_id": "packaged",
+      "sort_order": 7
+    }
+  ],
+  "products": [
+    {
+      "id": "ivar-oats",
+      "name": "Ivar Oats",
+      "category_id": "breakfast-grains",
+      "diet_type": "veg",
+      "price": "249.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 180,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ivar-oats--std",
+          "label": "Regular",
+          "price": "249.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "multigrain-breakfast-mix",
+      "name": "Multigrain Breakfast Mix",
+      "category_id": "breakfast-grains",
+      "diet_type": "veg",
+      "price": "329.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "7",
+      "calories_kcal": 200,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/multigrain-breakfast-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "multigrain-breakfast-mix--std",
+          "label": "Regular",
+          "price": "329.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ragi-mix",
+      "name": "Ragi Mix",
+      "category_id": "breakfast-grains",
+      "diet_type": "veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 190,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/ragi-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ragi-mix--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-mix",
+      "name": "Millet Mix",
+      "category_id": "breakfast-grains",
+      "diet_type": "veg",
+      "price": "289.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 185,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/millet-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-mix--std",
+          "label": "Regular",
+          "price": "289.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "plant-protein-mix",
+      "name": "Plant Protein Mix",
+      "category_id": "protein-active-nutrition",
+      "diet_type": "veg",
+      "price": "899.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "24",
+      "calories_kcal": 130,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/plant-protein-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "plant-protein-mix--std",
+          "label": "Regular",
+          "price": "899.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "active-protein",
+      "name": "Active Protein",
+      "category_id": "protein-active-nutrition",
+      "diet_type": "veg",
+      "price": "949.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "25",
+      "calories_kcal": 140,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/active-protein.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "active-protein--std",
+          "label": "Regular",
+          "price": "949.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ivar-active-nutrition-drinks",
+      "name": "Ivar Active Nutrition Drinks",
+      "category_id": "protein-active-nutrition",
+      "diet_type": "veg",
+      "price": "79.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 40,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ivar-active-nutrition-drinks--std",
+          "label": "Regular",
+          "price": "79.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "seed-mix",
+      "name": "Seed Mix",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "349.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 160,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/seed-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "seed-mix--std",
+          "label": "Regular",
+          "price": "349.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "roasted-nuts",
+      "name": "Roasted Nuts",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "399.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 170,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/roasted-nuts.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "roasted-nuts--std",
+          "label": "Regular",
+          "price": "399.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "trail-mix",
+      "name": "Trail Mix",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "349.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 165,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/trail-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "trail-mix--std",
+          "label": "Regular",
+          "price": "349.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "makhana-crunch",
+      "name": "Makhana Crunch",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "199.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 120,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/makhana-crunch.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "makhana-crunch--std",
+          "label": "Regular",
+          "price": "199.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "roasted-chana-mix",
+      "name": "Roasted Chana Mix",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "179.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "7",
+      "calories_kcal": 140,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/roasted-chana-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "roasted-chana-mix--std",
+          "label": "Regular",
+          "price": "179.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ragi-crisps",
+      "name": "Ragi Crisps",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "189.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "3",
+      "calories_kcal": 145,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/ragi-crisps.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ragi-crisps--std",
+          "label": "Regular",
+          "price": "189.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-puffs",
+      "name": "Millet Puffs",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "179.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "3",
+      "calories_kcal": 110,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/millet-puffs.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-puffs--std",
+          "label": "Regular",
+          "price": "179.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-seed-crackers",
+      "name": "Millet & Seed Crackers",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "219.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 150,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-seed-crackers--std",
+          "label": "Regular",
+          "price": "219.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "jowar-crunch",
+      "name": "Jowar Crunch",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "179.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "3",
+      "calories_kcal": 140,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/jowar-crunch.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "jowar-crunch--std",
+          "label": "Regular",
+          "price": "179.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "jowar-puffs",
+      "name": "Jowar Puffs",
+      "category_id": "nuts-seeds-snacks",
+      "diet_type": "veg",
+      "price": "179.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "3",
+      "calories_kcal": 115,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/jowar-puffs.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "jowar-puffs--std",
+          "label": "Regular",
+          "price": "179.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "multigrain-atta",
+      "name": "Multigrain Atta",
+      "category_id": "cooking-essentials",
+      "diet_type": "veg",
+      "price": "249.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "12",
+      "calories_kcal": 340,
+      "tags": [],
+      "pack_size": "1 kg",
+      "image_path": "eat/multigrain-atta.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "multigrain-atta--std",
+          "label": "1 kg",
+          "price": "249.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "quinoa",
+      "name": "Quinoa",
+      "category_id": "cooking-essentials",
+      "diet_type": "veg",
+      "price": "449.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "13",
+      "calories_kcal": 360,
+      "tags": [],
+      "pack_size": "500 g",
+      "image_path": "eat/quinoa.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "quinoa--std",
+          "label": "500 g",
+          "price": "449.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "chia-seeds",
+      "name": "Chia Seeds",
+      "category_id": "cooking-essentials",
+      "diet_type": "veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 140,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/chia-seeds.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "chia-seeds--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "flax-seeds",
+      "name": "Flax Seeds",
+      "category_id": "cooking-essentials",
+      "diet_type": "veg",
+      "price": "199.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 150,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "200 g",
+      "image_path": "eat/flax-seeds.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "flax-seeds--std",
+          "label": "200 g",
+          "price": "199.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "herbal-tea",
+      "name": "Herbal Tea",
+      "category_id": "teas-beverages",
+      "diet_type": "veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 5,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/herbal-tea.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "herbal-tea--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "green-tea",
+      "name": "Green Tea",
+      "category_id": "teas-beverages",
+      "diet_type": "veg",
+      "price": "279.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 2,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/green-tea.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "green-tea--std",
+          "label": "Regular",
+          "price": "279.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "turmeric-latte",
+      "name": "Turmeric Latte",
+      "category_id": "teas-beverages",
+      "diet_type": "veg",
+      "price": "329.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "2",
+      "calories_kcal": 90,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/turmeric-latte.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "turmeric-latte--std",
+          "label": "Regular",
+          "price": "329.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "instant-porridge-mix",
+      "name": "Instant Porridge Mix",
+      "category_id": "ready-mixes",
+      "diet_type": "veg",
+      "price": "279.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 180,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/instant-porridge-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "instant-porridge-mix--std",
+          "label": "Regular",
+          "price": "279.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "pancake-mix",
+      "name": "Pancake Mix",
+      "category_id": "ready-mixes",
+      "diet_type": "veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 210,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/pancake-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "pancake-mix--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "smoothie-mix",
+      "name": "Smoothie Mix",
+      "category_id": "ready-mixes",
+      "diet_type": "veg",
+      "price": "349.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 170,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/smoothie-mix.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "smoothie-mix--std",
+          "label": "Regular",
+          "price": "349.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "classic-oats-bowl",
+      "name": "Classic Oats Bowl",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "199.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "7",
+      "calories_kcal": 220,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/classic-oats-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "classic-oats-bowl--std",
+          "label": "Regular",
+          "price": "199.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ivar-muesli-bowl",
+      "name": "Ivar Muesli Bowl",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "219.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "7",
+      "calories_kcal": 240,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ivar-muesli-bowl--std",
+          "label": "Regular",
+          "price": "219.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-pancakes",
+      "name": "Millet Pancakes",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "249.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 230,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/millet-pancakes.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-pancakes--std",
+          "label": "Regular",
+          "price": "249.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ragi-upma",
+      "name": "Ragi Upma",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "179.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "5",
+      "calories_kcal": 210,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/ragi-upma.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ragi-upma--std",
+          "label": "Regular",
+          "price": "179.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-dosa",
+      "name": "Millet Dosa",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "149.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 180,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/millet-dosa.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-dosa--std",
+          "label": "Regular",
+          "price": "149.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "protein-smoothie",
+      "name": "Protein Smoothie",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "229.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "18",
+      "calories_kcal": 220,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/protein-smoothie.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "protein-smoothie--std",
+          "label": "Regular",
+          "price": "229.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "fruits-nuts-seeds-bowl",
+      "name": "Fruits, Nuts & Seeds Bowl",
+      "category_id": "cafe-favourites",
+      "diet_type": "veg",
+      "price": "249.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "7",
+      "calories_kcal": 260,
+      "tags": [],
+      "pack_size": null,
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "fruits-nuts-seeds-bowl--std",
+          "label": "Regular",
+          "price": "249.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "chicken-pepper-bites",
+      "name": "Chicken Pepper Bites",
+      "category_id": "non-veg-snacks",
+      "diet_type": "non_veg",
+      "price": "279.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "22",
+      "calories_kcal": 210,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/chicken-pepper-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "chicken-pepper-bites--std",
+          "label": "Regular",
+          "price": "279.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "fish-crispy-bites",
+      "name": "Fish Crispy Bites",
+      "category_id": "non-veg-snacks",
+      "diet_type": "non_veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "20",
+      "calories_kcal": 200,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/fish-crispy-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "fish-crispy-bites--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "prawn-masala-bites",
+      "name": "Prawn Masala Bites",
+      "category_id": "non-veg-snacks",
+      "diet_type": "non_veg",
+      "price": "329.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "21",
+      "calories_kcal": 190,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/prawn-masala-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "prawn-masala-bites--std",
+          "label": "Regular",
+          "price": "329.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "egg-masala-crunch",
+      "name": "Egg Masala Crunch",
+      "category_id": "non-veg-snacks",
+      "diet_type": "egg",
+      "price": "229.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "14",
+      "calories_kcal": 180,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/egg-masala-crunch.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "egg-masala-crunch--std",
+          "label": "Regular",
+          "price": "229.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "chicken-seekh-kebab-bites",
+      "name": "Chicken Seekh Kebab Bites",
+      "category_id": "non-veg-snacks",
+      "diet_type": "non_veg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "23",
+      "calories_kcal": 220,
+      "tags": [
+        "high_protein",
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/chicken-seekh-kebab-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "chicken-seekh-kebab-bites--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "date-chocolate-protein-bites",
+      "name": "Date & Chocolate Protein Bites",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "249.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "8",
+      "calories_kcal": 140,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/date-chocolate-protein-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "date-chocolate-protein-bites--std",
+          "label": "Regular",
+          "price": "249.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "mango-coconut-fruit-bites",
+      "name": "Mango Coconut Fruit Bites",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "229.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "2",
+      "calories_kcal": 120,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/mango-coconut-fruit-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "mango-coconut-fruit-bites--std",
+          "label": "Regular",
+          "price": "229.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "millet-chocolate-bites",
+      "name": "Millet Chocolate Bites",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "239.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 130,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/millet-chocolate-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "millet-chocolate-bites--std",
+          "label": "Regular",
+          "price": "239.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "oats-millet-cookies",
+      "name": "Oats & Millet Cookies",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "219.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 150,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/oats-millet-cookies.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "oats-millet-cookies--std",
+          "label": "Regular",
+          "price": "219.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "peanut-sesame-jaggery-bites",
+      "name": "Peanut Sesame Jaggery Bites",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "199.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "6",
+      "calories_kcal": 160,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/peanut-sesame-jaggery-bites.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "peanut-sesame-jaggery-bites--std",
+          "label": "Regular",
+          "price": "199.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "ragi-cocoa-cookies",
+      "name": "Ragi Cocoa Cookies",
+      "category_id": "energy-bites-cookies",
+      "diet_type": "veg",
+      "price": "219.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "4",
+      "calories_kcal": 145,
+      "tags": [
+        "light"
+      ],
+      "pack_size": null,
+      "image_path": "eat/ragi-cocoa-cookies.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "ragi-cocoa-cookies--std",
+          "label": "Regular",
+          "price": "219.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "morning-boost-shot",
+      "name": "Morning Boost Shot",
+      "category_id": "wellness-shots",
+      "diet_type": "veg",
+      "price": "99.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 25,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "30 ml",
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "morning-boost-shot--std",
+          "label": "30 ml",
+          "price": "99.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "night-reset-shot",
+      "name": "Night Reset Shot",
+      "category_id": "wellness-shots",
+      "diet_type": "veg",
+      "price": "99.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 20,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "30 ml",
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "night-reset-shot--std",
+          "label": "30 ml",
+          "price": "99.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "immunity-shield-shot",
+      "name": "Immunity Shield Shot",
+      "category_id": "wellness-shots",
+      "diet_type": "veg",
+      "price": "129.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 20,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "30 ml",
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "immunity-shield-shot--std",
+          "label": "30 ml",
+          "price": "129.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "digest-ease-shot",
+      "name": "Digest Ease Shot",
+      "category_id": "wellness-shots",
+      "diet_type": "veg",
+      "price": "99.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 15,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "30 ml",
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "digest-ease-shot--std",
+          "label": "30 ml",
+          "price": "99.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "breath-fresh-shot",
+      "name": "Breath Fresh Shot",
+      "category_id": "wellness-shots",
+      "diet_type": "veg",
+      "price": "99.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": null,
+      "calories_kcal": 15,
+      "tags": [
+        "light"
+      ],
+      "pack_size": "30 ml",
+      "image_path": null,
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "breath-fresh-shot--std",
+          "label": "30 ml",
+          "price": "99.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "garlic-steak-prawns-bowl",
+      "name": "Garlic Steak & Prawns Bowl",
+      "category_id": "protein-bowls",
+      "diet_type": "non_veg",
+      "price": "449.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "38",
+      "calories_kcal": 420,
+      "tags": [
+        "high_protein"
+      ],
+      "pack_size": null,
+      "image_path": "eat/garlic-steak-prawns-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "garlic-steak-prawns-bowl--std",
+          "label": "Regular",
+          "price": "449.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "grilled-chicken-quinoa-bowl",
+      "name": "Grilled Chicken Quinoa Bowl",
+      "category_id": "protein-bowls",
+      "diet_type": "non_veg",
+      "price": "379.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "35",
+      "calories_kcal": 400,
+      "tags": [
+        "high_protein"
+      ],
+      "pack_size": null,
+      "image_path": "eat/grilled-chicken-quinoa-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "grilled-chicken-quinoa-bowl--std",
+          "label": "Regular",
+          "price": "379.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "lemon-herb-salmon-bowl",
+      "name": "Lemon Herb Salmon Bowl",
+      "category_id": "protein-bowls",
+      "diet_type": "non_veg",
+      "price": "469.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "32",
+      "calories_kcal": 380,
+      "tags": [
+        "high_protein"
+      ],
+      "pack_size": null,
+      "image_path": "eat/lemon-herb-salmon-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "lemon-herb-salmon-bowl--std",
+          "label": "Regular",
+          "price": "469.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "high-protein-paneer-bowl",
+      "name": "High-Protein Paneer Bowl",
+      "category_id": "protein-bowls",
+      "diet_type": "veg",
+      "price": "329.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "26",
+      "calories_kcal": 360,
+      "tags": [
+        "high_protein"
+      ],
+      "pack_size": null,
+      "image_path": "eat/high-protein-paneer-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "high-protein-paneer-bowl--std",
+          "label": "Regular",
+          "price": "329.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    },
+    {
+      "id": "egg-avocado-power-bowl",
+      "name": "Egg & Avocado Power Bowl",
+      "category_id": "protein-bowls",
+      "diet_type": "egg",
+      "price": "299.00",
+      "currency": "INR",
+      "in_stock": true,
+      "protein_g": "24",
+      "calories_kcal": 340,
+      "tags": [
+        "high_protein"
+      ],
+      "pack_size": null,
+      "image_path": "eat/egg-avocado-power-bowl.jpg",
+      "description": null,
+      "nutrition_verified": false,
+      "variants": [
+        {
+          "id": "egg-avocado-power-bowl--std",
+          "label": "Regular",
+          "price": "299.00",
+          "currency": "INR",
+          "in_stock": true
+        }
+      ]
+    }
+  ]
+}

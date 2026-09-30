@@ -1,0 +1,16 @@
+target-version = "py311"
+line-length = 100
+extend-exclude = [".venv", ".local-services"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "DJ"]
+ignore = ["S101"]
+
+[lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106"]
+"conftest.py" = ["S105"]
+# Reply catalogs: keep each translated sentence on one line for native-speaker review.
+"apps/conversations/messages/*.py" = ["E501"]
+
+[lint.isort]
+known-first-party = ["apps", "config", "host"]
