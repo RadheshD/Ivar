@@ -12,6 +12,9 @@ from dataclasses import dataclass
 
 MAX_BUTTONS = 3
 MAX_ROWS = 10
+MIN_CAROUSEL_CARDS = 2
+MAX_CAROUSEL_CARDS = 10
+MAX_CAROUSEL_BUTTONS = 2  # quick-reply buttons per media-carousel card
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,49 @@ class OutProductCard:
 
 
 @dataclass(frozen=True)
+class CarouselCard:
+    """One carousel card: a required image header, a short body and quick-reply buttons.
+
+    Every card of a carousel must carry the same number of buttons (a Meta rule).
+    """
+
+    image_url: str
+    body: str
+    buttons: tuple[Button, ...]
+
+    def __post_init__(self):
+        if not self.image_url.startswith("https://"):
+            raise ValueError("A carousel card needs an https image.")
+        if not 1 <= len(self.buttons) <= MAX_CAROUSEL_BUTTONS:
+            raise ValueError(f"A carousel card needs 1 to {MAX_CAROUSEL_BUTTONS} buttons.")
+        _unique_ids(self.buttons)
+
+
+@dataclass(frozen=True)
+class OutCarousel:
+    """An interactive media carousel (2 to 10 cards) with a short body line.
+
+    ``fallback`` holds the same products as ordinary messages (an intro and one
+    ``OutProductCard`` each). If WhatsApp rejects the carousel, delivery sends those
+    instead, so no product is ever dropped.
+    """
+
+    body: str
+    cards: tuple[CarouselCard, ...]
+    fallback: tuple[Outbound, ...] = ()
+    key: str | None = None
+
+    def __post_init__(self):
+        if not MIN_CAROUSEL_CARDS <= len(self.cards) <= MAX_CAROUSEL_CARDS:
+            raise ValueError(
+                f"A carousel needs {MIN_CAROUSEL_CARDS} to {MAX_CAROUSEL_CARDS} cards."
+            )
+        if len({len(card.buttons) for card in self.cards}) != 1:
+            raise ValueError("Every carousel card needs the same number of buttons.")
+        _unique_ids([b for card in self.cards for b in card.buttons])
+
+
+@dataclass(frozen=True)
 class OutList:
     body: str
     button: str  # label of the button that opens the list
@@ -119,4 +165,4 @@ class OutCTA:
             raise ValueError("CTA URL must be https.")
 
 
-Outbound = OutText | OutButtons | OutList | OutCTA | OutProductCard
+Outbound = OutText | OutButtons | OutList | OutCTA | OutProductCard | OutCarousel

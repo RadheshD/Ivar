@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from apps.conversations.backend_port import BackendUnavailable
-from apps.conversations.channel import Inbound, OutButtons, OutList, OutProductCard
+from apps.conversations.channel import (
+    Inbound,
+    OutButtons,
+    OutCarousel,
+    OutList,
+    OutProductCard,
+)
 from apps.conversations.messages import t
 
 WA_ID = "919876500001"
@@ -98,6 +104,8 @@ class Chat:
         for m in self.last:
             if isinstance(m, (OutButtons, OutProductCard)):
                 found.extend(b.id for b in m.buttons)
+            elif isinstance(m, OutCarousel):
+                found.extend(b.id for card in m.cards for b in card.buttons)
             elif isinstance(m, OutList):
                 found.extend(r.id for r in m.rows)
         return found
@@ -109,6 +117,10 @@ class Chat:
     @property
     def cards(self) -> list[OutProductCard]:
         return [m for m in self.last if isinstance(m, OutProductCard)]
+
+    @property
+    def carousel(self) -> OutCarousel | None:
+        return next((m for m in self.last if isinstance(m, OutCarousel)), None)
 
     @property
     def body(self) -> str:
@@ -197,3 +209,37 @@ class FlakyBackend:
 
 
 OUTAGE = BackendUnavailable("simulated outage")
+
+
+def write_fixture(tmp_path, mutate) -> str:
+    """Copy the catalog fixture into ``tmp_path``, let ``mutate(data)`` change it, and
+    return the path (for ``FakeBackend(fixture_path=...)``)."""
+    import copy
+    import json
+
+    from apps.conversations.fake_backend import FIXTURE_PATH
+
+    with open(FIXTURE_PATH, encoding="utf-8") as handle:
+        data = copy.deepcopy(json.load(handle))
+    mutate(data)
+    path = tmp_path / "catalog.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return str(path)
+
+
+def resize_category(data: dict, category_id: str, count: int) -> None:
+    """Make ``category_id`` hold exactly ``count`` products (trim, or clone the first)."""
+    import copy
+
+    products = data["products"]
+    mine = [p for p in products if p["category_id"] == category_id]
+    for extra in mine[count:]:
+        products.remove(extra)
+    template = mine[0]
+    for n in range(len(mine), count):
+        clone = copy.deepcopy(template)
+        clone["id"] = f"{template['id']}-x{n}"
+        clone["name"] = f"{template['name']} {n}"
+        for variant in clone["variants"]:
+            variant["id"] = f"{clone['id']}--{variant['id'].split('--')[-1]}"
+        products.append(clone)

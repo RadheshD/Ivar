@@ -27,6 +27,13 @@ IVA_BACKEND_ADAPTER = "apps.conversations.fake_backend.FakeBackend"
 # AI Planner welcome/menu link opt in explicitly with the ``settings`` fixture
 # (``settings.IVA_PLANNER_URL = "https://..."``).
 IVA_PLANNER_URL = ""
+
+# No waiting for status callbacks in the suite; ordering tests opt in explicitly.
+IVA_ORDER_WAIT_SECONDS = 0
+
+# Forced off regardless of .env: the suite must never read or write the developer's
+# saved Fake Backend state. Persistence tests opt in with a temporary path.
+IVA_FAKE_BACKEND_STATE_FILE = ""
 IVA_WEBSITE_SHOP_URL = ""
 
 # Forced regardless of the developer's local .env (same reasoning as IVA_BACKEND_ADAPTER
@@ -43,3 +50,9 @@ if not IVA_PSEUDONYM_KEY:
 # have configured locally. Tests that need images opt in explicitly via the Fake
 # Backend's ``image_base_url`` constructor argument.
 IVA_PRODUCT_IMAGE_BASE_URL = ""
+
+# Real-Redis tests (session store, per-customer lock) use this prefix in place of the
+# dev/prod "iva:" one, so a test run can never read, overwrite or leave behind dev keys
+# (and ``reset_dev_data`` never sees test keys). Applied by the autouse fixture in the
+# repo-root conftest.py.
+IVA_TEST_REDIS_KEY_PREFIX = "iva-test:"

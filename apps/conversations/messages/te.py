@@ -107,6 +107,9 @@ MESSAGES = {
     "btn.add_to_cart": "కార్ట్‌కు చేర్చు",
     "btn.order_now": "ఇప్పుడే ఆర్డర్ చేయి",
     "btn.continue_shopping": "షాపింగ్ కొనసాగించు",
+    "carousel.body": "ఇవిగో మా {category}",
+    "checkout.welcome_back": "{name}, తిరిగి స్వాగతం! మీరు చెక్‌అవుట్ మధ్యలో ఉన్నారు.",
+    "btn.continue_checkout": "చెకౌట్ కొనసాగించు",
     "cards.footer": "మరిన్ని చూడాలా, లేదా మెనూకు వెళ్లాలా?",
     "cards.stale": "క్షమించండి, ఆ వస్తువు ఇప్పుడు అందుబాటులో లేదు.",
     # ------------------------------------------------------------------ cart
@@ -191,6 +194,21 @@ MESSAGES = {
 }
 
 ESCAPE_WORDS = ("మెనూ", "రద్దు", "వెనక్కి", "menu", "cancel")
+# Whole-message commands at the address step (see en.py). NEEDS NATIVE-SPEAKER REVIEW.
+GREETING_WORDS = (
+    "నమస్కారం", "నమస్కారము", "నమస్తే", "హాయ్", "హలో", "హాయ్ అండి",
+    "namaskaram", "namaskaramu", "namaskaramandi", "namaste", "hai",
+)  # fmt: skip
+CART_WORDS = (
+    "కార్ట్", "నా కార్ట్", "కార్ట్ చూపించు", "నా కార్ట్ చూపించు", "కార్ట్ చూపించండి",
+    "naa cart", "na cart", "cart chupinchu", "naa cart chupinchu", "cart chupinchandi",
+)  # fmt: skip
+ORDER_STATUS_WORDS = (
+    "ఆర్డర్ స్టేటస్", "నా ఆర్డర్", "ఆర్డర్ ట్రాక్ చేయి", "నా ఆర్డర్ ఎక్కడ ఉంది",
+    "naa order", "order status", "order track cheyyi",
+)  # fmt: skip
+HELP_WORDS = ("సహాయం", "సహాయము", "హెల్ప్", "sahayam", "sahaayam", "help")
+LANGUAGE_WORDS = ("భాష", "భాష మార్చు", "భాష మార్చండి", "bhasha", "bhasha marchu", "language")
 DIET_WORDS = {
     "veg": ("శాకాహారం", "శాకాహారి", "veg"),
     "egg": ("గుడ్డు", "శాకాహారం + గుడ్డు", "egg"),

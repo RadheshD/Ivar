@@ -12,12 +12,15 @@ never hardcoded. Unset base URL, non-https base URL, or a null ``image_path`` al
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
+import os
 import re
 import threading
+import time
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -82,6 +85,36 @@ def _image_base_url_from_settings() -> str:
     return _https_or_empty(getattr(settings, "IVA_PRODUCT_IMAGE_BASE_URL", "") or "")
 
 
+def _state_file_from_settings() -> str:
+    """``IVA_FAKE_BACKEND_STATE_FILE`` (dev only), or ``""`` for in-memory only."""
+    from django.conf import settings
+
+    return getattr(settings, "IVA_FAKE_BACKEND_STATE_FILE", "") or ""
+
+
+def state_file_counts(path: Path | str) -> dict[str, int]:
+    """Plain counts of what a state file holds (never any values); zeros if unreadable."""
+    try:
+        with Path(path).open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        return {
+            "customers": len(data["customers"]),
+            "cart lines": sum(len(v) for v in data["carts"].values()),
+            "addresses": len(data["addresses"]),
+            "orders": len(data["orders"]),
+        }
+    except Exception:
+        return {"customers": 0, "cart lines": 0, "addresses": 0, "orders": 0}
+
+
+def clear_state_file(path: Path | str) -> None:
+    """Replace the file's contents with an empty state (a running dev server notices)."""
+    empty = FakeBackend(state_file="")
+    target = Path(path)
+    empty._state_file = target
+    empty._save_state_file()
+
+
 @dataclass
 class _Line:
     line_id: str
@@ -125,6 +158,7 @@ class FakeBackend:
         fixture_path: Path | str = FIXTURE_PATH,
         clock: Callable[[], datetime] | None = None,
         image_base_url: str | None = None,
+        state_file: Path | str | None = None,
     ):
         self._fixture_path = Path(fixture_path)
         self._clock = clock or (lambda: datetime.now(UTC))
@@ -136,8 +170,177 @@ class FakeBackend:
             if image_base_url is None
             else _https_or_empty(image_base_url)
         )
+        # Dev-only persistence of customer state. None (the default): read from settings.
+        # "" or unset: in-memory only (tests, production).
+        if state_file is None:
+            state_file = _state_file_from_settings()
+        self._state_file = Path(state_file) if state_file else None
+        self._file_sig: tuple[int, int] | None = None
+        self._dirty = False
         self._lock = threading.RLock()
-        self.reset()
+        self._reset_state()
+        self._load_state_file()
+
+    # ------------------------------------------------------------------ persistence
+
+    @contextlib.contextmanager
+    def _txn(self):
+        """Hold the lock for a customer-state operation. With a state file, first pick up
+        changes another process (or ``reset_dev_data``) made to it, and save afterwards if
+        the operation changed anything (``_changed``)."""
+        with self._lock:
+            self._refresh()
+            try:
+                yield
+            finally:
+                if self._dirty:
+                    self._dirty = False
+                    self._save_state_file()
+
+    def _changed(self) -> None:
+        self._dirty = True
+
+    def _stat_sig(self) -> tuple[int, int] | None:
+        try:
+            st = self._state_file.stat()
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
+    def _refresh(self) -> None:
+        if self._state_file is None or self._stat_sig() == self._file_sig:
+            return
+        self._reset_state()
+        self._load_state_file()
+
+    def _load_state_file(self) -> None:
+        if self._state_file is None:
+            return
+        self._file_sig = self._stat_sig()
+        if self._file_sig is None:  # no file yet: start empty
+            return
+        try:
+            with self._state_file.open(encoding="utf-8") as fh:
+                self._restore(json.load(fh))
+        except Exception as exc:
+            logger.warning(
+                "fake backend: state file unreadable (%s); starting with empty state",
+                type(exc).__name__,
+            )
+            self._reset_state()
+            with contextlib.suppress(OSError):  # keep the unreadable file for inspection
+                os.replace(self._state_file, self._state_file.with_name(
+                    self._state_file.name + ".corrupt"
+                ))  # fmt: skip
+            self._file_sig = self._stat_sig()
+
+    def _save_state_file(self) -> None:
+        if self._state_file is None:
+            return
+        data = json.dumps(self._snapshot(), indent=1)
+        tmp = self._state_file.with_name(self._state_file.name + ".tmp")
+        try:
+            self._state_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(data, encoding="utf-8")
+            for attempt in range(5):  # Windows/OneDrive can briefly lock the target
+                try:
+                    os.replace(tmp, self._state_file)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.05)
+            self._file_sig = self._stat_sig()
+        except OSError as exc:
+            logger.error("fake backend: could not save state file (%s)", type(exc).__name__)
+
+    def _snapshot(self) -> dict:
+        def when(value):
+            return value.isoformat() if value else None
+
+        return {
+            "version": 1,
+            "seq": {"customer": self._customer_seq, "line": self._line_seq,
+                    "address": self._address_seq},
+            "customers": [asdict(c) for c in self._customers.values()],
+            "carts": {
+                cid: [asdict(line) for line in lines.values()]
+                for cid, lines in self._carts.items()
+            },
+            "addresses": [
+                {**asdict(address), "owner": owner} for address, owner in self._addresses.values()
+            ],
+            "orders": [
+                {
+                    "order_number": o.order_number,
+                    "customer_id": o.customer_id,
+                    "address_id": o.address_id,
+                    "total": str(o.total),
+                    "currency": o.currency,
+                    "order_status": o.order_status,
+                    "payment_status": o.payment_status,
+                    "payment_url": o.payment_url,
+                    "events": [{"status": e.status, "at": when(e.at)} for e in o.events],
+                    "eta_start": when(o.eta_start),
+                    "eta_end": when(o.eta_end),
+                    "tracking_id": o.tracking_id,
+                }
+                for o in self._orders.values()
+            ],
+            "checkouts": [
+                {
+                    "customer_id": cid,
+                    "key": key,
+                    "result": {**asdict(r), "total": str(r.total)},
+                }
+                for (cid, key), r in self._checkouts.items()
+            ],
+        }  # fmt: skip
+
+    def _restore(self, data: dict) -> None:
+        def when(value):
+            return datetime.fromisoformat(value) if value else None
+
+        if data.get("version") != 1:
+            raise ValueError("unknown state version")
+        seq = data["seq"]
+        self._customer_seq, self._line_seq = int(seq["customer"]), int(seq["line"])
+        self._address_seq = int(seq["address"])
+        for c in data["customers"]:
+            customer = CustomerRef(**c)
+            self._customers[customer.id] = customer
+            self._customer_by_wa[customer.whatsapp_id] = customer.id
+        for cid, lines in data["carts"].items():
+            self._carts[cid] = {
+                ln["line_id"]: _Line(**ln)
+                for ln in lines
+                if ln["variant_id"] in self._variant_product
+            }  # lines for products no longer in the catalog are dropped
+        for a in data["addresses"]:
+            owner = a.pop("owner")
+            address = Address(**a)
+            self._addresses[address.id] = (address, owner)
+        for o in data["orders"]:
+            order = _Order(
+                order_number=o["order_number"],
+                customer_id=o["customer_id"],
+                address_id=o["address_id"],
+                total=to_decimal(o["total"]),
+                currency=o["currency"],
+                order_status=o["order_status"],
+                payment_status=o["payment_status"],
+                payment_url=o["payment_url"],
+                events=[OrderStatusEvent(e["status"], when(e["at"])) for e in o["events"]],
+                eta_start=when(o["eta_start"]),
+                eta_end=when(o["eta_end"]),
+                tracking_id=o["tracking_id"],
+            )
+            self._orders[order.order_number] = order
+        for item in data["checkouts"]:
+            r = item["result"]
+            self._checkouts[(item["customer_id"], item["key"])] = CheckoutResult(
+                **{**r, "total": to_decimal(r["total"])}
+            )
 
     # ------------------------------------------------------------------ helpers
 
@@ -283,7 +486,7 @@ class FakeBackend:
     def get_or_create_customer(self, whatsapp_id: str) -> CustomerRef:
         if not whatsapp_id or not str(whatsapp_id).strip():
             raise ValueError("whatsapp_id is required.")
-        with self._lock:
+        with self._txn():
             whatsapp_id = str(whatsapp_id).strip()
             customer_id = self._customer_by_wa.get(whatsapp_id)
             created = customer_id is None
@@ -300,6 +503,7 @@ class FakeBackend:
                     onboarding_complete=False,
                 )
                 self._customer_by_wa[whatsapp_id] = customer_id
+                self._changed()
             self._log("get_or_create_customer", customer=customer_id, created=created)
             return self._customers[customer_id]
 
@@ -317,7 +521,7 @@ class FakeBackend:
             raise ValueError("Unsupported language.")
         if diet is not None and diet not in DIETS:
             raise ValueError("Unsupported diet.")
-        with self._lock:
+        with self._txn():
             customer = self._customer(customer_id)
             changes = {
                 k: v
@@ -332,6 +536,7 @@ class FakeBackend:
             }
             customer = replace(customer, **changes)
             self._customers[customer_id] = customer
+            self._changed()
             self._log("update_profile", customer=customer_id, fields=",".join(sorted(changes)))
             return customer
 
@@ -421,7 +626,7 @@ class FakeBackend:
     # ------------------------------------------------------------------ CartPort
 
     def get_cart(self, customer_id: str) -> CartView:
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             view = self._cart_view(customer_id)
             self._log("get_cart", customer=customer_id, lines=len(view.lines))
@@ -429,7 +634,7 @@ class FakeBackend:
 
     def add_item(self, customer_id: str, variant_id: str, quantity: int) -> CartView:
         _check_quantity(quantity)
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             product, variant = self._variant(variant_id)
             if not (product.in_stock and variant.in_stock):
@@ -442,28 +647,31 @@ class FakeBackend:
                 self._line_seq += 1
                 line_id = f"line_{self._line_seq}"
                 cart[line_id] = _Line(line_id=line_id, variant_id=variant_id, quantity=quantity)
+            self._changed()
             self._log("add_item", customer=customer_id, variant=variant_id, qty=quantity)
             return self._cart_view(customer_id)
 
     def update_quantity(self, customer_id: str, line_id: str, quantity: int) -> CartView:
         _check_quantity(quantity)
-        with self._lock:
+        with self._txn():
             line = self._own_line(customer_id, line_id)
             line.quantity = quantity
+            self._changed()
             self._log("update_quantity", customer=customer_id, line=line_id, qty=quantity)
             return self._cart_view(customer_id)
 
     def remove_item(self, customer_id: str, line_id: str) -> CartView:
-        with self._lock:
+        with self._txn():
             self._own_line(customer_id, line_id)
             del self._carts[customer_id][line_id]
+            self._changed()
             self._log("remove_item", customer=customer_id, line=line_id)
             return self._cart_view(customer_id)
 
     # ------------------------------------------------------------------ AddressPort
 
     def list_addresses(self, customer_id: str) -> list[Address]:
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             result = [a for a, owner in self._addresses.values() if owner == customer_id]
             self._log("list_addresses", customer=customer_id, count=len(result))
@@ -472,7 +680,7 @@ class FakeBackend:
     def add_address(self, customer_id: str, text: str, label: str | None = None) -> Address:
         if not text or not text.strip():
             raise ValueError("Address text is required.")
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             self._address_seq += 1
             address = Address(
@@ -481,6 +689,7 @@ class FakeBackend:
                 text=text.strip(),
             )
             self._addresses[address.id] = (address, customer_id)
+            self._changed()
             self._log("add_address", customer=customer_id, address=address.id)
             return address
 
@@ -489,7 +698,7 @@ class FakeBackend:
     def checkout(self, customer_id: str, address_id: str, idempotency_key: str) -> CheckoutResult:
         if not idempotency_key or not idempotency_key.strip():
             raise ValueError("idempotency_key is required.")
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             previous = self._checkouts.get((customer_id, idempotency_key))
             if previous is not None:
@@ -533,6 +742,7 @@ class FakeBackend:
                 payment_url=order.payment_url,
             )
             self._checkouts[(customer_id, idempotency_key)] = result
+            self._changed()
             self._log("checkout", customer=customer_id, order=order_number, replay=False)
             return result
 
@@ -543,14 +753,14 @@ class FakeBackend:
         return [o for o in self._orders.values() if o.customer_id == customer_id]
 
     def get_latest_order(self, customer_id: str) -> OrderStatusView | None:
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             orders = self._customer_orders(customer_id)
             self._log("get_latest_order", customer=customer_id, found=bool(orders))
             return self._order_view(orders[-1]) if orders else None
 
     def get_order(self, customer_id: str, order_number: str) -> OrderStatusView | None:
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             order = self._orders.get((order_number or "").strip().upper())
             self._log("get_order", customer=customer_id, found=order is not None)
@@ -561,7 +771,7 @@ class FakeBackend:
             return self._order_view(order)
 
     def list_recent_orders(self, customer_id: str, limit: int = 5) -> list[OrderStatusView]:
-        with self._lock:
+        with self._txn():
             self._customer(customer_id)
             orders = self._customer_orders(customer_id)[::-1][: max(limit, 0)]
             self._log("list_recent_orders", customer=customer_id, count=len(orders))
@@ -573,7 +783,7 @@ class FakeBackend:
 
     def simulate_payment_confirmed(self, order_number: str) -> OrderStatusView:
         """Payment -> PAID, then order -> CONFIRMED, each with an event."""
-        with self._lock:
+        with self._txn():
             order = self._order(order_number)
             if order.payment_status not in (PaymentStatus.PENDING, PaymentStatus.FAILED):
                 raise ValueError("Payment is not awaiting confirmation.")
@@ -582,12 +792,13 @@ class FakeBackend:
             if order.order_status == OrderStatus.PENDING:
                 order.order_status = OrderStatus.CONFIRMED.value
                 order.events.append(OrderStatusEvent(OrderStatus.CONFIRMED.value, self._clock()))
+            self._changed()
             self._log("simulate_payment_confirmed", order=order.order_number)
             return self._order_view(order)
 
     def simulate_payment_failed(self, order_number: str) -> OrderStatusView:
         """Payment -> FAILED. The order stays PENDING."""
-        with self._lock:
+        with self._txn():
             order = self._order(order_number)
             if order.payment_status != PaymentStatus.PENDING:
                 raise ValueError("Payment is not pending.")
@@ -595,6 +806,7 @@ class FakeBackend:
             order.events.append(
                 OrderStatusEvent(payment_event(PaymentStatus.FAILED), self._clock())
             )
+            self._changed()
             self._log("simulate_payment_failed", order=order.order_number)
             return self._order_view(order)
 
@@ -609,7 +821,7 @@ class FakeBackend:
     ) -> OrderStatusView:
         """Force an order status (and optionally ETA / tracking) with an event."""
         status = OrderStatus(status).value
-        with self._lock:
+        with self._txn():
             order = self._order(order_number)
             order.order_status = status
             order.events.append(OrderStatusEvent(status, self._clock()))
@@ -617,6 +829,7 @@ class FakeBackend:
                 order.eta_start, order.eta_end = eta_start, eta_end
             if tracking_id is not None:
                 order.tracking_id = tracking_id
+            self._changed()
             self._log("simulate_status", order=order.order_number, status=status)
             return self._order_view(order)
 
@@ -642,7 +855,15 @@ class FakeBackend:
             self._log("set_price", product=product_id)
 
     def reset(self) -> None:
-        """Discard all customers, carts, addresses and orders and reload the fixture."""
+        """Discard all customers, carts, addresses and orders and reload the fixture.
+        With a state file configured, the saved state is cleared too."""
+        with self._lock:
+            self._reset_state()
+            if self._state_file is not None:
+                self._save_state_file()
+            self._log("reset")
+
+    def _reset_state(self) -> None:
         with self._lock:
             self._load_fixture()
             self._customers: dict[str, CustomerRef] = {}
@@ -654,4 +875,3 @@ class FakeBackend:
             self._customer_seq = 0
             self._line_seq = 0
             self._address_seq = 0
-            self._log("reset")

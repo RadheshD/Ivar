@@ -24,15 +24,22 @@ def image_chat(make_engine, image_backend):
 
 def test_card_has_image_header_when_the_backend_provides_one(image_chat):
     onboard(image_chat)
-    image_chat.tap("CATEGORY_SELECT:nuts-seeds-snacks")
-    seed_mix = next(c for c in image_chat.cards if c.body.startswith("Seed Mix"))
-    assert seed_mix.image_url == "https://cdn.example.test/assets/products/eat/seed-mix.jpg"
+    image_chat.tap("CATEGORY_SELECT:nuts-seeds-snacks")  # every product has an image: carousel
+    card = next(c for c in image_chat.carousel.cards if c.body.startswith("Seed Mix"))
+    assert card.image_url == "https://cdn.example.test/assets/products/eat/seed-mix.jpg"
 
 
-def test_card_has_no_image_when_the_product_has_none(image_chat):
-    onboard(image_chat)
-    image_chat.tap("CATEGORY_SELECT:breakfast-grains")
-    ivar_oats = next(c for c in image_chat.cards if c.body.startswith("Ivar Oats"))
+def test_card_has_no_image_when_the_product_has_none(make_engine, tmp_path):
+    from .harness import write_fixture
+
+    def drop_image(data):
+        next(p for p in data["products"] if p["id"] == "ivar-oats")["image_path"] = None
+
+    path = write_fixture(tmp_path, drop_image)
+    chat = Chat(make_engine(FakeBackend(path, image_base_url="https://cdn.example.test/p/")))
+    onboard(chat)
+    chat.tap("CATEGORY_SELECT:breakfast-grains")
+    ivar_oats = next(c for c in chat.cards if c.body.startswith("Ivar Oats"))
     assert ivar_oats.image_url is None  # a text-only card, not dropped from the page
 
 

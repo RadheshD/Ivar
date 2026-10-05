@@ -210,9 +210,25 @@ def test_image_url_is_none_without_a_base_url(fake):
     assert fake.get_product("seed-mix").image_url is None  # no base_url given to `fake`
 
 
-def test_image_url_is_none_when_the_fixture_has_no_image_path(fake):
+def test_every_fixture_product_has_an_image_path():
     with_base = FakeBackend(image_base_url="https://cdn.example.test/assets/products/")
-    assert with_base.get_product("ivar-oats").image_url is None  # known missing image
+    products, total = with_base.list_products(limit=50, offset=0)
+    products += with_base.list_products(limit=50, offset=50)[0]
+    assert total == len(products) == 55
+    assert all(p.image_url for p in products)
+    oats = with_base.get_product("ivar-oats")
+    assert oats.image_url == "https://cdn.example.test/assets/products/eat/oats.jpg"
+
+
+def test_image_url_is_none_when_a_product_has_no_image_path(tmp_path):
+    from .harness import write_fixture
+
+    def drop_image(data):
+        next(p for p in data["products"] if p["id"] == "ivar-oats")["image_path"] = None
+
+    path = write_fixture(tmp_path, drop_image)
+    backend = FakeBackend(path, image_base_url="https://cdn.example.test/assets/products/")
+    assert backend.get_product("ivar-oats").image_url is None
 
 
 def test_image_base_url_must_be_https(fake):

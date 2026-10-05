@@ -52,18 +52,30 @@ from .backend_port import (
     ProductUnavailable,
 )
 from .channel import (
+    MAX_CAROUSEL_CARDS,
     MAX_ROWS,
     Button,
+    CarouselCard,
     Inbound,
     Outbound,
     OutButtons,
+    OutCarousel,
     OutCTA,
     OutList,
     OutProductCard,
     OutText,
     Row,
 )
-from .messages import DIET_WORDS, ESCAPE_WORDS, t
+from .messages import (
+    CART_WORDS,
+    DIET_WORDS,
+    ESCAPE_WORDS,
+    GREETING_WORDS,
+    HELP_WORDS,
+    LANGUAGE_WORDS,
+    ORDER_STATUS_WORDS,
+    t,
+)
 from .state import Session, SessionStore, SessionStoreError, State, store_from_settings
 
 logger = logging.getLogger(__name__)
@@ -71,6 +83,7 @@ logger = logging.getLogger(__name__)
 ACT = "ACT:"  # engine-owned reply IDs (diet, paging, addresses, confirm); never sent to apps.ai
 PAGE_SIZE = MAX_ROWS - 1  # one row stays free for "More…"
 CARD_PAGE_SIZE = 4  # products shown as cards (category browse, plain search results) per page
+CAROUSEL_PAGE_SIZE = MAX_CAROUSEL_CARDS  # category page size when it can go out as a carousel
 HINTS_TTL_SECONDS = 300
 MAX_HINT_PRODUCTS = 500
 MAX_MENU_GROUPS = 4
@@ -340,8 +353,12 @@ class ConversationEngine:
             if diet:
                 return self._set_diet(c, diet)
         if text and state is State.CHECKOUT_ADDRESS:
-            if normalize(text) in ESCAPE_WORDS:
+            folded = normalize(text)
+            if folded in ESCAPE_WORDS:
                 return self._main_menu(c)
+            command = self._checkout_command(c, folded)
+            if command is not None:
+                return command
             return self._address_typed(c, text)
 
         result = self._understand(inbound)
@@ -572,6 +589,8 @@ class ConversationEngine:
         elif name == "addr" and arg:
             s.address_id = self._unref(c, arg)
             return self._confirm(c)
+        elif name == "resume":  # "Continue checkout" after a greeting mid-checkout
+            return self._start_checkout(c)
         elif name == "newaddr":
             s.state = State.CHECKOUT_ADDRESS
             s.address_id = None
@@ -703,7 +722,7 @@ class ConversationEngine:
     ) -> list[Outbound]:
         diet = self._diet(c, show_all)
         page, total = self.backend.list_products(
-            category_id=category.id, diet=diet, limit=CARD_PAGE_SIZE, offset=offset
+            category_id=category.id, diet=diet, limit=CAROUSEL_PAGE_SIZE, offset=offset
         )
         listing = {
             "kind": "category",
@@ -723,6 +742,9 @@ class ConversationEngine:
                 return [self._diet_notice(c, "diet.hidden_all", query=category.name)]
             body = t(c.lang, "category.empty", category=category.name)
             return [OutButtons(body, (self._menu_button(c),), "category.empty")]
+        carousel_cards = self._carousel_cards(c, page)
+        if carousel_cards is None:  # the current one-card-per-product page
+            page = page[:CARD_PAGE_SIZE]
         body_key = "category.body"
         body = t(
             c.lang,
@@ -732,7 +754,12 @@ class ConversationEngine:
             end=offset + len(page),
             total=total,
         )
-        replies = self._render_product_page(c, page, total, offset, listing, body, body_key)
+        if carousel_cards is not None:
+            replies = self._product_carousel(
+                c, page, carousel_cards, total, offset, listing, body, body_key, category.name
+            )
+        else:
+            replies = self._render_product_page(c, page, total, offset, listing, body, body_key)
         if hidden > 0:
             replies.append(self._diet_notice(c, "diet.hidden_some", count=hidden))
         return replies
@@ -752,7 +779,7 @@ class ConversationEngine:
             offset = 0
         else:
             mode = listing.get("mode")
-            step = CARD_PAGE_SIZE if mode == "cards" else PAGE_SIZE
+            step = (listing.get("shown") or CARD_PAGE_SIZE) if mode == "cards" else PAGE_SIZE
             if mode == "results":
                 step = listing.get("shown", PAGE_SIZE)
             offset = listing.get("offset", 0) + step
@@ -832,7 +859,9 @@ class ConversationEngine:
             return None
         return url
 
-    def _product_card(self, c: _Turn, product: ProductSummary) -> OutProductCard:
+    def _card_text_and_buttons(
+        self, c: _Turn, product: ProductSummary
+    ) -> tuple[str, tuple[Button, ...]]:
         lines = [product.name, self._money(product.price, product.currency)]
         if not product.in_stock:
             lines.append(t(c.lang, "product.out_of_stock_tag"))
@@ -841,9 +870,57 @@ class ConversationEngine:
             Button(f"{ACT}addcard:{ref}", t(c.lang, "btn.add_to_cart")),
             Button(f"{ACT}ordernow:{ref}", t(c.lang, "btn.order_now")),
         )
-        return OutProductCard(
-            "\n".join(lines), buttons, self._card_image_url(product), "product.card"
+        return "\n".join(lines), buttons
+
+    def _product_card(self, c: _Turn, product: ProductSummary) -> OutProductCard:
+        body, buttons = self._card_text_and_buttons(c, product)
+        return OutProductCard(body, buttons, self._card_image_url(product), "product.card")
+
+    def _carousel_cards(
+        self, c: _Turn, page: list[ProductSummary]
+    ) -> tuple[CarouselCard, ...] | None:
+        """Carousel cards for a whole page, or ``None`` when it cannot be one carousel:
+        fewer than 2 products, or any product without a usable image."""
+        if not 2 <= len(page) <= MAX_CAROUSEL_CARDS:
+            return None
+        cards = []
+        for product in page:
+            url = self._card_image_url(product)
+            if url is None:
+                return None
+            body, buttons = self._card_text_and_buttons(c, product)
+            cards.append(CarouselCard(url, body, buttons))
+        return tuple(cards)
+
+    def _product_carousel(
+        self,
+        c: _Turn,
+        page: list[ProductSummary],
+        cards: tuple[CarouselCard, ...],
+        total: int,
+        offset: int,
+        listing: dict,
+        body: str,
+        key: str,
+        category_name: str,
+    ) -> list[Outbound]:
+        """One carousel for the page, then Show more (if any) and Menu. The ordinary
+        intro + cards ride along as ``fallback`` should WhatsApp reject the carousel."""
+        s = c.session
+        s.state = State.CATEGORY
+        s.listing = {**listing, "offset": offset, "shown": len(page), "ids": [p.id for p in page]}
+        fallback = (OutText(body, key), *(self._product_card(c, p) for p in page))
+        carousel = OutCarousel(
+            t(c.lang, "carousel.body", category=category_name), cards, fallback, "carousel.body"
         )
+        return [carousel, self._cards_footer(c, offset + len(page) < total)]
+
+    def _cards_footer(self, c: _Turn, more: bool) -> OutButtons:
+        buttons = []
+        if more:
+            buttons.append(Button(f"{ACT}more", t(c.lang, "list.more")))
+        buttons.append(self._menu_button(c))
+        return OutButtons(t(c.lang, "cards.footer"), tuple(buttons), "cards.footer")
 
     def _product_cards(
         self,
@@ -859,14 +936,10 @@ class ConversationEngine:
         then a footer with Show more (if there is another page) and Menu."""
         s = c.session
         s.state = State.CATEGORY
-        s.listing = {**listing, "offset": offset, "ids": [p.id for p in page]}
+        s.listing = {**listing, "offset": offset, "shown": len(page), "ids": [p.id for p in page]}
         replies: list[Outbound] = [OutText(body, key)]
         replies.extend(self._product_card(c, p) for p in page)
-        footer_buttons = []
-        if offset + len(page) < total:
-            footer_buttons.append(Button(f"{ACT}more", t(c.lang, "list.more")))
-        footer_buttons.append(self._menu_button(c))
-        replies.append(OutButtons(t(c.lang, "cards.footer"), tuple(footer_buttons), "cards.footer"))
+        replies.append(self._cards_footer(c, offset + len(page) < total))
         return replies
 
     def _product_results(
@@ -969,8 +1042,15 @@ class ConversationEngine:
                 return [self._diet_notice(c, "diet.hidden_all", query=query)]
             body = t(c.lang, "search.none", query=query)
             return [OutButtons(body, (self._menu_button(c),), "search.none")]
-        if found.total == 1:
+        if found.total == 1 and disambiguating:
             replies = self._select_product(c, found.page[0].id, quantity)
+        elif found.total == 1:
+            # A plain search with one match: the same card as browsing (re-checked via the
+            # port). Cards always add 1, so a typed quantity keeps the detail path above.
+            s = c.session
+            s.state = State.CATEGORY
+            s.listing = {**listing, "all": False, "offset": 0, "ids": [found.page[0].id]}
+            replies = self._show_card(c, found.page[0].id, relist=False)
         else:
             if disambiguating:
                 c.session.pending = {"kind": "choose", "quantity": quantity}
@@ -1000,6 +1080,13 @@ class ConversationEngine:
             total=found.total,
         )
         listing = {"kind": "search", "query": found.query, "all": show_all, "mode": mode}
+        if mode == "results" and found.total == 1:  # e.g. "Show anyway" surfaced a lone match
+            c.session.state = State.CATEGORY
+            c.session.listing = {**listing, "offset": 0, "ids": [found.page[0].id]}
+            replies = self._show_card(c, found.page[0].id, relist=False)
+            if found.hidden:
+                replies.append(self._diet_notice(c, "diet.hidden_some", count=found.hidden))
+            return replies
         replies = self._render_product_page(
             c, found.page, found.total, offset, listing, body, "search.results"
         )
@@ -1019,13 +1106,16 @@ class ConversationEngine:
         """A card's button pointed at a product that is now missing/inactive/out of stock."""
         return [self._text(c, "cards.stale"), *self._show_current_listing(c)]
 
-    def _show_card(self, c: _Turn, product_id: str) -> list[Outbound]:
-        """A search-result row was tapped: re-check the product via the port, then send
-        its card (or say it is out of stock)."""
+    def _show_card(self, c: _Turn, product_id: str, *, relist: bool = True) -> list[Outbound]:
+        """Re-check the product via the port, then send its card (or say it is out of
+        stock). ``relist=False`` (a search that itself just found this one product) goes
+        to the main menu when it is gone, since re-showing the listing would search again."""
         try:
             product = self.backend.get_product(product_id)
         except (NotFound, ProductUnavailable):
-            return self._card_stale(c)
+            if relist:
+                return self._card_stale(c)
+            return [self._text(c, "cards.stale"), *self._main_menu(c)]
         if not product.in_stock or not any(v.in_stock for v in product.variants):
             body = t(c.lang, "product.unavailable", name=product.name)
             buttons = (self._menu_button(c), self._button(c, Intent.VIEW_CART.value, "btn.cart"))
@@ -1342,6 +1432,30 @@ class ConversationEngine:
         rows.append(Row(f"{ACT}newaddr", t(c.lang, "checkout.new_address")))
         body = t(c.lang, "checkout.ask_address")
         return [OutList(body, t(c.lang, "list.choose"), tuple(rows), "checkout.ask_address")]
+
+    def _checkout_command(self, c: _Turn, folded: str) -> list[Outbound] | None:
+        """At the address step: a message that is EXACTLY a greeting or a global command
+        (any language, romanized or native) is that, not an address. Anything else,
+        including an address that merely contains such a word, returns ``None``."""
+        if folded in GREETING_WORDS:
+            name = c.customer.name or ""
+            body = t(c.lang, "checkout.welcome_back", name=name).replace(", !", "!").lstrip(", ")
+            buttons = (
+                Button(f"{ACT}resume", t(c.lang, "btn.continue_checkout")),
+                self._menu_button(c),
+            )
+            return [OutButtons(body, buttons, "checkout.welcome_back")]
+        if folded in CART_WORDS:
+            return self._show_cart(c)
+        if folded in ORDER_STATUS_WORDS:
+            return self._order_status(c, None)
+        if folded in HELP_WORDS:
+            buttons = (self._menu_button(c), self._button(c, Intent.VIEW_CART.value, "btn.cart"))
+            return [OutButtons(t(c.lang, "help"), buttons, "help")]
+        if folded in LANGUAGE_WORDS:
+            c.session.state = State.LANGUAGE
+            return [self._language_prompt(c)]
+        return None
 
     def _address_typed(self, c: _Turn, text: str) -> list[Outbound]:
         address_text = " ".join(text.split())

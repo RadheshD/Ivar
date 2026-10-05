@@ -5,13 +5,17 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import secrets
 
 from apps.iva_common.http_transport import HttpResponse
 
 APP_SECRET = "test-app-secret"
 VERIFY_TOKEN = "test-verify-token"
 PHONE_NUMBER_ID = "100000000000001"
-WA_ID = "919876500001"
+# Unique per test run (keeps the "91" prefix and the "0001" ending the tests rely on), so
+# leftover state from an earlier or interrupted run can never affect webhook tests.
+RUN_TOKEN = f"{secrets.randbelow(10**6):06d}"
+WA_ID = f"91{RUN_TOKEN}0001"
 TOKEN = "test-access-token-never-real"
 
 SETTINGS = {

@@ -37,7 +37,7 @@ def test_add_update_remove(chat, backend, lang):
 
 def test_add_by_tapping_after_viewing_a_product(chat, backend):
     onboard(chat)
-    chat.send("do you have makhana")
+    chat.send("add makhana")
     chat.tap("ADD_TO_CART:makhana-crunch--std:3")
     assert chat.keys[0] == "cart.added"
     assert cart_of(backend) == {"Makhana Crunch": 3}
@@ -45,7 +45,7 @@ def test_add_by_tapping_after_viewing_a_product(chat, backend):
 
 def test_typed_quantity_completes_the_pending_add(chat, backend):
     onboard(chat)
-    chat.send("do you have makhana")
+    chat.send("add makhana")
     chat.send("4 packets")
     assert cart_of(backend) == {"Makhana Crunch": 4}
 
@@ -74,7 +74,7 @@ def test_quantity_limit_comes_from_the_port(chat, backend):
 
 def test_invalid_quantity_keeps_waiting_for_a_number(chat, backend):
     onboard(chat)
-    chat.send("do you have makhana")
+    chat.send("add makhana")
     chat.send("0")
     assert chat.keys == ["qty.invalid"]
     chat.send("2")

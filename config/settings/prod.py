@@ -7,6 +7,7 @@ from .base import (
     CONVERSATION_REDIS_URL,
     CSRF_TRUSTED_ORIGINS,
     DATABASE_URL,
+    IVA_FAKE_BACKEND_STATE_FILE,
     IVA_INLINE_PROCESSING,
     IVA_PSEUDONYM_KEY,
     REDIS_URL,
@@ -35,6 +36,7 @@ def validate_production(
     whatsapp: dict[str, str] | None = None,
     pseudonym_key: str = "",
     inline_processing: bool = False,
+    fake_backend_state_file: str = "",
 ) -> None:
     """Refuse to start production with unsafe or incomplete configuration."""
     required = {
@@ -64,6 +66,10 @@ def validate_production(
         raise ImproperlyConfigured("IVA_PSEUDONYM_KEY must differ from DJANGO_SECRET_KEY.")
     if any(marker in backend_adapter for marker in FAKE_BACKEND_PATHS):
         raise ImproperlyConfigured("The Fake Backend must not be used in production.")
+    if fake_backend_state_file:
+        raise ImproperlyConfigured(
+            "IVA_FAKE_BACKEND_STATE_FILE must not be set in production; it is development-only."
+        )
     if inline_processing:
         raise ImproperlyConfigured(
             "IVA_INLINE_PROCESSING must not be used in production; it is development-only."
@@ -91,6 +97,7 @@ validate_production(
     },
     pseudonym_key=IVA_PSEUDONYM_KEY,
     inline_processing=IVA_INLINE_PROCESSING,
+    fake_backend_state_file=IVA_FAKE_BACKEND_STATE_FILE,
 )
 
 DEBUG = False

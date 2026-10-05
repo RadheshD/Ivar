@@ -95,7 +95,7 @@
         "light"
       ],
       "pack_size": null,
-      "image_path": null,
+      "image_path": "eat/oats.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -259,7 +259,7 @@
         "light"
       ],
       "pack_size": null,
-      "image_path": null,
+      "image_path": "eat/active-drinks.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -475,7 +475,7 @@
         "light"
       ],
       "pack_size": null,
-      "image_path": null,
+      "image_path": "eat/millet-seeds-crackers.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -849,7 +849,7 @@
         "light"
       ],
       "pack_size": null,
-      "image_path": null,
+      "image_path": "eat/ivar-muesli.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -982,7 +982,7 @@
       "calories_kcal": 260,
       "tags": [],
       "pack_size": null,
-      "image_path": null,
+      "image_path": "eat/fruits-nuts-seeds.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -1310,7 +1310,7 @@
         "light"
       ],
       "pack_size": "30 ml",
-      "image_path": null,
+      "image_path": "eat/morning-boost.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -1337,7 +1337,7 @@
         "light"
       ],
       "pack_size": "30 ml",
-      "image_path": null,
+      "image_path": "eat/night-reset.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -1364,7 +1364,7 @@
         "light"
       ],
       "pack_size": "30 ml",
-      "image_path": null,
+      "image_path": "eat/immunity-shield.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -1391,7 +1391,7 @@
         "light"
       ],
       "pack_size": "30 ml",
-      "image_path": null,
+      "image_path": "eat/digest-ease.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [
@@ -1418,7 +1418,7 @@
         "light"
       ],
       "pack_size": "30 ml",
-      "image_path": null,
+      "image_path": "eat/breath-fresh.jpg",
       "description": null,
       "nutrition_verified": false,
       "variants": [

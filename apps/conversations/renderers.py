@@ -6,11 +6,20 @@ Returns the message part only ({"type": ..., ...}); the S2 client adds
 
 from __future__ import annotations
 
-from .channel import Outbound, OutButtons, OutCTA, OutList, OutProductCard, OutText
+from .channel import (
+    Outbound,
+    OutButtons,
+    OutCarousel,
+    OutCTA,
+    OutList,
+    OutProductCard,
+    OutText,
+)
 
 TEXT_BODY_MAX = 4096
 INTERACTIVE_BODY_MAX = 1024
 BUTTON_TITLE_MAX = 20
+CAROUSEL_CARD_BODY_MAX = 160
 LIST_BUTTON_MAX = 20
 ROW_TITLE_MAX = 24
 ROW_DESCRIPTION_MAX = 72
@@ -43,6 +52,19 @@ def _reply_buttons(buttons) -> list[dict]:
     ]
 
 
+def _quick_reply_buttons(buttons) -> list[dict]:
+    return [
+        {
+            "type": "quick_reply",
+            "quick_reply": {
+                "id": _checked_id(b.id, BUTTON_ID_MAX),
+                "title": truncate(b.title, BUTTON_TITLE_MAX),
+            },
+        }
+        for b in buttons
+    ]
+
+
 def render(message: Outbound) -> dict:
     if isinstance(message, OutText):
         return {
@@ -67,6 +89,25 @@ def render(message: Outbound) -> dict:
         if message.image_url:
             interactive["header"] = {"type": "image", "image": {"link": message.image_url}}
         return {"type": "interactive", "interactive": interactive}
+    if isinstance(message, OutCarousel):
+        cards = [
+            {
+                "card_index": index,
+                "type": "cta_url",  # Meta's documented card type, also for quick-reply cards
+                "header": {"type": "image", "image": {"link": card.image_url}},
+                "body": {"text": truncate(card.body, CAROUSEL_CARD_BODY_MAX)},
+                "action": {"buttons": _quick_reply_buttons(card.buttons)},
+            }
+            for index, card in enumerate(message.cards)
+        ]
+        return {
+            "type": "interactive",
+            "interactive": {
+                "type": "carousel",
+                "body": {"text": truncate(message.body, INTERACTIVE_BODY_MAX)},
+                "action": {"cards": cards},
+            },
+        }
     if isinstance(message, OutList):
         rows = []
         for row in message.rows:

@@ -108,6 +108,9 @@ MESSAGES = {
     "btn.add_to_cart": "कार्ट में जोड़ें",
     "btn.order_now": "अभी ऑर्डर करें",
     "btn.continue_shopping": "खरीदारी जारी रखें",
+    "carousel.body": "ये रहे हमारे {category}",
+    "checkout.welcome_back": "{name}, फिर से स्वागत है! आप चेकआउट के बीच में थे।",
+    "btn.continue_checkout": "चेकआउट जारी रखें",
     "cards.footer": "और देखना है, या मेनू पर वापस जाना है?",
     "cards.stale": "माफ़ कीजिए, वह वस्तु अभी उपलब्ध नहीं है।",
     # ------------------------------------------------------------------ cart
@@ -192,6 +195,21 @@ MESSAGES = {
 }
 
 ESCAPE_WORDS = ("मेनू", "रद्द", "वापस", "menu", "cancel")
+# Whole-message commands at the address step (see en.py). NEEDS NATIVE-SPEAKER REVIEW.
+GREETING_WORDS = (
+    "नमस्ते", "नमस्कार", "प्रणाम", "हेलो", "हैलो", "हाय", "हाई",
+    "namaste", "namaskar", "pranam", "pranaam", "hello",
+)  # fmt: skip
+CART_WORDS = (
+    "कार्ट", "मेरा कार्ट", "कार्ट दिखाओ", "मेरा कार्ट दिखाओ", "कार्ट दिखाइए",
+    "mera cart", "cart dikhao", "mera cart dikhao", "cart dikhaiye",
+)  # fmt: skip
+ORDER_STATUS_WORDS = (
+    "ऑर्डर स्टेटस", "मेरा ऑर्डर", "ऑर्डर ट्रैक करो", "मेरा ऑर्डर कहाँ है",
+    "mera order", "order status", "order track karo",
+)  # fmt: skip
+HELP_WORDS = ("मदद", "सहायता", "हेल्प", "madad", "help")
+LANGUAGE_WORDS = ("भाषा", "भाषा बदलो", "भाषा बदलें", "bhasha", "bhasha badlo", "language")
 DIET_WORDS = {
     "veg": ("शाकाहारी", "veg", "shakahari"),
     "egg": ("अंडा", "शाकाहारी + अंडा", "egg", "anda"),

@@ -105,6 +105,9 @@ MESSAGES = {
     "btn.add_to_cart": "Add to cart",
     "btn.order_now": "Order now",
     "btn.continue_shopping": "Continue shopping",
+    "carousel.body": "Here are our {category}",
+    "checkout.welcome_back": "Welcome back, {name}! You were in the middle of checkout.",
+    "btn.continue_checkout": "Continue checkout",
     "cards.footer": "Want to see more, or head back to the menu?",
     "cards.stale": "Sorry, that item is no longer available.",
     # ------------------------------------------------------------------ cart
@@ -190,6 +193,23 @@ MESSAGES = {
 
 # Words that leave a free-text step (address) instead of being saved.
 ESCAPE_WORDS = ("menu", "cancel", "stop", "back")
+# Whole-message commands recognised at the address step (checked before the text is saved as
+# an address; only an EXACT match counts, so "Cart Road, Kondapur" is still an address).
+GREETING_WORDS = (
+    "hi", "hii", "hiii", "hello", "helo", "hey", "heyy", "hi there", "hello there", "hey there",
+    "hola", "good morning", "good afternoon", "good evening",
+    "namaste", "namaskar", "namaskaram", "namaskaramandi", "namaskaramu",
+)  # fmt: skip
+CART_WORDS = (
+    "cart", "my cart", "view cart", "show cart", "show my cart", "see cart", "see my cart",
+    "open cart", "basket", "my basket", "view basket",
+)  # fmt: skip
+ORDER_STATUS_WORDS = (
+    "order status", "my order", "my orders", "track order", "track my order",
+    "where is my order",
+)  # fmt: skip
+HELP_WORDS = ("help", "support", "help me")
+LANGUAGE_WORDS = ("language", "change language", "switch language", "set language")
 DIET_WORDS = {
     "veg": ("veg", "vegetarian", "pure veg"),
     "egg": ("egg", "eggetarian", "veg egg", "veg + egg"),

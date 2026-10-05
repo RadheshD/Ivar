@@ -39,6 +39,8 @@ VALID_ENV = {
     # every test in this process, so every subprocess here must override it back to a
     # safe value rather than inherit whatever the developer's own .env happens to have.
     "IVA_INLINE_PROCESSING": "false",
+    # Same reasoning: the dev .env sets a state file path.
+    "IVA_FAKE_BACKEND_STATE_FILE": "",
 }
 
 CONTROLLED = set(VALID_ENV) | {"DJANGO_DEBUG", "DJANGO_SETTINGS_MODULE", "DJANGO_ENV_FILE"}
@@ -215,6 +217,13 @@ def test_unset_adapter_is_refused(adapter):
 def test_fake_backend_is_refused():
     result = run_prod(IVA_BACKEND_ADAPTER="apps.conversations.fake_backend.FakeBackend")
     assert_refused(result, "Fake Backend")
+
+
+def test_fake_backend_state_file_is_refused():
+    assert_refused(
+        run_prod(IVA_FAKE_BACKEND_STATE_FILE=".local-data/fake_backend.json"),
+        "IVA_FAKE_BACKEND_STATE_FILE",
+    )
 
 
 def test_inline_processing_is_refused():

@@ -10,6 +10,7 @@ from unittest import mock
 import pytest
 from django.test import override_settings
 
+from apps.whatsapp import locks as locks_module
 from apps.whatsapp.locks import (
     DEFAULT_TTL_SECONDS,
     LOCK_TTL_SAFETY_MARGIN_SECONDS,
@@ -66,7 +67,7 @@ class FakeLockRedis:
 def test_lock_key_never_contains_the_phone_number():
     key = lock_key(WA_A)
     assert WA_A not in key
-    assert key.startswith("iva:lock:customer:")
+    assert key.startswith(locks_module.KEY_PREFIX)  # "iva-test:..." under pytest
     assert key == lock_key(WA_A)
 
 

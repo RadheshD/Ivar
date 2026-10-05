@@ -22,7 +22,7 @@ from django.views.decorators.http import require_http_methods
 
 from apps.iva_common.logging import mask_phone
 
-from . import services
+from . import ordering, services
 from .parser import parse_webhook
 from .security import SIGNATURE_HEADER, verify_signature, verify_token
 from .tasks import enqueue, process_inbound_inline
@@ -87,6 +87,7 @@ def _receive(request):
                     services.forget_inbound(row.pk)  # let Meta's retry deliver it again
                     raise
         for status in parsed.statuses:
+            ordering.note_status(status.wa_message_id, status.status)  # frees a waiting worker
             services.record_status(status)
     except Exception as exc:
         logger.error("webhook: could not record or queue events error=%s", type(exc).__name__)

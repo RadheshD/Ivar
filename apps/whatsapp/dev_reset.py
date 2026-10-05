@@ -8,6 +8,7 @@ Safe by construction:
   ``REDIS_URL``/``CONVERSATION_REDIS_URL``/``CELERY_BROKER_URL`` can all point at the
   same physical Redis instance, which also holds Celery's own internal bookkeeping keys.
 - Celery: purged only through Celery's own supported ``control.purge()`` API.
+- Fake Backend state file (``IVA_FAKE_BACKEND_STATE_FILE``): emptied, never removed.
 
 Every count returned here is a plain integer. Nothing in this module ever returns or
 prints a key, a pseudonym, message text or any row's field values.
@@ -20,6 +21,7 @@ import ssl
 from celery import current_app as celery_app
 from django.conf import settings
 
+from apps.conversations.fake_backend import clear_state_file, state_file_counts
 from apps.conversations.models import Conversation, ConversationMessage
 from apps.conversations.state import KEY_PREFIX as SESSION_KEY_PREFIX
 from apps.whatsapp.locks import KEY_PREFIX as LOCK_KEY_PREFIX
@@ -51,6 +53,29 @@ def check_safe_to_run() -> None:
     backend_adapter = getattr(settings, "IVA_BACKEND_ADAPTER", "") or ""
     if not any(marker in backend_adapter for marker in FAKE_BACKEND_PATHS):
         raise UnsafeEnvironment("Refusing to run: IVA_BACKEND_ADAPTER is not the Fake Backend.")
+
+
+# --------------------------------------------------------------------------- Fake Backend state
+
+
+def _state_file() -> str:
+    return getattr(settings, "IVA_FAKE_BACKEND_STATE_FILE", "") or ""
+
+
+def count_fake_backend_state() -> dict[str, int]:
+    """Plain counts of what the dev state file holds; empty if none is configured."""
+    path = _state_file()
+    return state_file_counts(path) if path else {}
+
+
+def clear_fake_backend_state() -> dict[str, int]:
+    """Empty the dev state file (kept as a valid, empty state); returns what it held."""
+    path = _state_file()
+    if not path:
+        return {}
+    counts = state_file_counts(path)
+    clear_state_file(path)
+    return counts
 
 
 # --------------------------------------------------------------------------- Postgres

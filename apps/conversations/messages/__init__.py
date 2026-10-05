@@ -10,6 +10,17 @@ NEEDS_NATIVE_REVIEW = ("te", "hi")
 
 # Any language's words are accepted, whatever the saved language.
 ESCAPE_WORDS = frozenset(normalize(w) for module in (en, te, hi) for w in module.ESCAPE_WORDS)
+
+
+def _words(attr: str) -> frozenset[str]:
+    return frozenset(normalize(w) for module in (en, te, hi) for w in getattr(module, attr))
+
+
+GREETING_WORDS = _words("GREETING_WORDS")
+CART_WORDS = _words("CART_WORDS")
+ORDER_STATUS_WORDS = _words("ORDER_STATUS_WORDS")
+HELP_WORDS = _words("HELP_WORDS")
+LANGUAGE_WORDS = _words("LANGUAGE_WORDS")
 DIET_WORDS = {
     diet: frozenset(normalize(w) for module in (en, te, hi) for w in module.DIET_WORDS[diet])
     for diet in en.DIET_WORDS

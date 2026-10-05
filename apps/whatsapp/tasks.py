@@ -31,7 +31,7 @@ from apps.conversations.engine import get_engine
 from apps.conversations.models import ConversationMessage
 from apps.iva_common.logging import mask_phone
 
-from . import rate_limit, services
+from . import ordering, rate_limit, services
 from .client import client_from_settings
 from .delivery import send_replies
 from .locks import CustomerLockTimeout, customer_lock
@@ -108,7 +108,9 @@ def _process_once(
     # customer waits its turn here instead of racing it.
     with customer_lock(wa_id, wait_seconds=settings.IVA_CUSTOMER_LOCK_WAIT_SECONDS):
         replies = _replies(wa_id, text, reply_id, reply_title, profile_name)
-        for sent in send_replies(wa_id, replies, client=client):
+        for sent in send_replies(
+            wa_id, replies, client=client, wait_for_status=ordering.wait_for_status
+        ):
             services.record_outbound(
                 conversation,
                 message_type=sent.message_type,

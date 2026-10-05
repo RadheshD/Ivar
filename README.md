@@ -108,6 +108,10 @@ copy .env.example .env     # then fill in the values below
 - `IVA_PRODUCT_IMAGE_BASE_URL`: base `https://` URL for product card images (e.g.
   `https://ivar-eyw.vercel.app/assets/products/`). Unset or non-`https` is treated as
   "not configured": product cards render text-only.
+- `IVA_ORDER_WAIT_SECONDS` (default 5, `0` = off) and `IVA_ORDER_WAIT_STATUS` (`sent`, or
+  `delivered`): a "Show more / Menu" message waits this long for the preceding carousel's
+  or image card's WhatsApp status callback, so it cannot arrive first. Needs the Meta
+  webhook to deliver status callbacks.
 
 ## Run
 
@@ -234,6 +238,9 @@ check with a real WhatsApp client and Meta's test phone number. Do not automate 
 - [ ] With `IVA_WEBSITE_SHOP_URL` set, the main menu shows "See full menu on website"
       (and still fits, with "Plan my meals" too); tapping it sends an "Open full menu"
       link button that opens the shop page. With it unset, the option is absent.
+- [ ] Type a search with exactly one match (e.g. "makhana"): that product's card
+      appears (image, name, price, "Add to cart"/"Order now"), not a list. "add 2 quinoa"
+      still adds 2.
 - [ ] Type a product search with several matches (e.g. "protein"): one list with
       name and price per row ("Show more" if there are more than 10); tapping a row
       sends that product's card, whose "Add to cart"/"Order now" work. Category
@@ -242,12 +249,25 @@ check with a real WhatsApp client and Meta's test phone number. Do not automate 
       `key: value` lines — see `PLANNER_INTEGRATION.md` for the exact format): a summary
       and the resolved products with real prices appear, with "Add all to cart" and
       "Browse menu" buttons; tapping "Add all to cart" adds them and shows the cart.
-- [ ] Discovery: open a category from the menu; one card per product appears (an image
-      if `IVA_PRODUCT_IMAGE_BASE_URL` is set and the product has one, otherwise a
-      text-only card — never hidden), each with its own "Add to cart"/"Order now"
-      buttons.
-- [ ] Open a category with more than 4 products; after 4 cards, a "Show more"/Menu
-      message appears; tapping "Show more" shows the next 4, with no repeats.
+- [ ] Discovery (carousel): with `IVA_PRODUCT_IMAGE_BASE_URL` set, open "Café Favourites"
+      (7 products): ONE swipeable carousel arrives ("Here are our Café Favourites"), each
+      card with an image, name, price and the same "Add to cart"/"Order now" buttons,
+      followed by a message with only "Menu" (nothing more to show). Check all 7 cards
+      scroll and every image loads. **This is the first real-Meta test of the carousel
+      payload; if Meta rejects it you should instead see the plain cards.**
+- [ ] Ordering: in every carousel test above the "Want to see more, or head back to the
+      menu?" message arrives AFTER the carousel (never before), on Desktop and Android.
+      It may appear a second or two later than before; with the webhook not delivering
+      status callbacks it appears after the 5-second timeout. If it is still first, set
+      `IVA_ORDER_WAIT_STATUS=delivered`. Same check for a single image card followed by a
+      buttons message.
+- [ ] Open "Nuts, Seeds & Snacks" (10 products): one carousel of 10 cards. Tap "Add to
+      cart" and "Order now" on a carousel card: same replies as on a plain card.
+- [ ] Unset `IVA_PRODUCT_IMAGE_BASE_URL` (or point it at a bad host) and reopen a
+      category: plain cards appear instead (4 per page, a "Show more"/Menu message
+      after them; "Show more" shows the next 4 with no repeats). Nothing is hidden.
+- [ ] Set your diet to vegetarian and open a category that has non-veg items: only the
+      allowed items show, and a message says some are hidden (with "Show anyway").
 - [ ] Tap "Add to cart" on a card: a short confirmation appears with "View cart"/
       "Continue shopping" buttons; "Continue shopping" shows the category list for the
       group you were browsing (Fresh & Ready to Eat / Packaged Foods) — it does not
@@ -259,6 +279,10 @@ check with a real WhatsApp client and Meta's test phone number. Do not automate 
 - [ ] Checkout: type a new address, confirm; a payment link and order number arrive.
       (The link goes nowhere real — the Fake Backend never talks to a real payment
       provider.)
+- [ ] At the address prompt type "Hi": you get "Welcome back, <name>! You were in the middle of
+      checkout." with "Continue checkout" and "Menu" (not an address error); "Continue checkout"
+      asks for the address again and the cart is unchanged. "menu" and "my cart" do their normal
+      thing. A real address like "Cart Road, Kondapur, Hyderabad" is still accepted.
 - [ ] "where is my order" / tap the order-status button: shows `PENDING` payment.
 - [ ] Change language mid-conversation (menu > change language) to Telugu, then Hindi;
       replies switch immediately and stay in that language on the next message.
@@ -289,17 +313,26 @@ check with a real WhatsApp client and Meta's test phone number. Do not automate 
 `fixtures/ivar_catalog.json` (55 products; **prices and nutrition unverified**) and
 logs every call with `backend=fake`. Each product's `image_path` (relative, e.g.
 `eat/seed-mix.jpg`) is joined with `IVA_PRODUCT_IMAGE_BASE_URL` to build `image_url`;
-45 of the 55 have a working path (verified with one HEAD request each, 2026-09-29),
-the other 10 are `null` and render as text-only cards — see `ARCHITECTURE.md`'s
-Contract decisions and `HANDOVER.md`'s open request #6 for the exact list. Its test-only helpers
+all 55 have a path (each verified with one HEAD request: 45 on 2026-09-29, the last 10
+on 2026-10-01); a product with none still renders as a text-only card, and a category
+page containing one is sent as plain cards instead of a carousel. Its test-only helpers
 (`simulate_payment_confirmed`, `simulate_payment_failed`, `simulate_status`,
 `set_stock`, `reset`) are not part of the port.
+
+## Keeping dev customer data across restarts
+
+Set `IVA_FAKE_BACKEND_STATE_FILE` (the dev `.env` uses `.local-data/fake_backend.json`) and the Fake
+Backend keeps customer profiles, carts, addresses and orders in that JSON file, so they survive server
+restarts and autoreloads. The product catalog still comes from the fixture. Leave it empty for
+in-memory only (the default; always the case in tests). Production refuses to start with it set. The
+file is git-ignored (`.local-data/`) and may contain test customers' phone numbers, so do not share it.
+A missing file starts empty; a corrupt one starts empty with a warning and is kept as `<file>.corrupt`.
 
 ## Resetting dev data
 
 `python manage.py reset_dev_data` deletes all IVA test data: conversation rows in
 PostgreSQL, IVA's own Redis keys (sessions, per-customer locks, rate-limit counters —
-found by key prefix, never `FLUSHDB`/`FLUSHALL`), and any queued Celery tasks. It never
+found by key prefix, never `FLUSHDB`/`FLUSHALL`), and any queued Celery tasks, and (if `IVA_FAKE_BACKEND_STATE_FILE` is set) empties that state file. It never
 touches a non-IVA table or a non-IVA Redis key.
 
 - **Dry run by default** — prints row/key/task counts and deletes nothing.

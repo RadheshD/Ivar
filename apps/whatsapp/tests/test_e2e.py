@@ -16,11 +16,20 @@ from django.test import Client, override_settings
 
 from apps.conversations.adapters import get_backend
 from apps.conversations.engine import reset_engine
-from apps.conversations.state import store_from_settings
 from apps.whatsapp import tasks
 from apps.whatsapp.client import WhatsAppClient
 
-from .fakes import SETTINGS, TOKEN, FakeTransport, encode, list_reply, payload, sign, text_message
+from .fakes import (
+    RUN_TOKEN,
+    SETTINGS,
+    TOKEN,
+    FakeTransport,
+    encode,
+    list_reply,
+    payload,
+    sign,
+    text_message,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -80,9 +89,9 @@ _WA_ID_SUFFIX = {name: str(i).rjust(4, "0") for i, name in enumerate(VARIANTS)}
 
 
 def _wa_id(variant: str) -> str:
-    # Fixed and distinct per variant, so real-Redis session state never crosses test
-    # cases; ``_clean_redis_state`` below deletes each one before and after every run.
-    return "9190000" + _WA_ID_SUFFIX[variant]
+    # Distinct per variant and unique per run (RUN_TOKEN), so real-Redis session state never
+    # crosses test cases or runs; the repo-root conftest deletes their keys.
+    return f"91{RUN_TOKEN}" + _WA_ID_SUFFIX[variant]
 
 
 class WebhookChat:
@@ -161,16 +170,6 @@ def webhook(monkeypatch):
     with override_settings(**SETTINGS):
         yield transport
     reset_engine()
-
-
-@pytest.fixture(autouse=True)
-def _clean_redis_state():
-    store = store_from_settings()
-    for variant in VARIANTS:
-        store.delete(_wa_id(variant))
-    yield
-    for variant in VARIANTS:
-        store.delete(_wa_id(variant))
 
 
 @pytest.mark.parametrize("variant", VARIANTS)

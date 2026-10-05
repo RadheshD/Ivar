@@ -55,7 +55,7 @@ def test_backend_down_before_the_customer_is_known(chat, flaky):
 
 def test_backend_down_on_add_keeps_the_pending_product(chat, flaky, backend):
     onboard(chat)
-    chat.send("do you have makhana")
+    chat.send("add makhana")
     flaky.fail["add_item"] = OUTAGE
     chat.send("2")
     assert chat.keys == ["error.unavailable"]

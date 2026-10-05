@@ -112,3 +112,62 @@ def test_card_without_an_image_is_not_retried_on_failure():
     assert len(sent) == 1
     assert not sent[0].ok
     assert len(transport.requests) == 1
+
+
+def _carousel_replies():
+    from apps.conversations.channel import CarouselCard, OutButtons, OutCarousel, OutText
+
+    def buttons(n):
+        return (
+            Button(f"ACT:addcard:p{n}", "Add to cart"),
+            Button(f"ACT:ordernow:p{n}", "Order now"),
+        )
+
+    cards = tuple(
+        CarouselCard(f"https://example.invalid/{n}.jpg", f"P{n}\n₹{n}", buttons(n)) for n in (1, 2)
+    )
+    fallback = (
+        OutText("Intro", "category.body"),
+        *(OutProductCard(c.body, c.buttons, c.image_url, "product.card") for c in cards),
+    )
+    footer = OutButtons("More?", (Button("ACT:more", "Show more"),), "cards.footer")
+    return [OutCarousel("Here", cards, fallback, "carousel.body"), footer]
+
+
+def test_a_carousel_is_sent_as_one_message_then_the_footer():
+    transport = FakeTransport()
+    _, client = make(transport)
+    sent = send_replies(WA_ID, _carousel_replies(), client=client)
+    assert [(s.template_key, s.message_type, s.ok) for s in sent] == [
+        ("carousel.body", "carousel", True),
+        ("cards.footer", "button", True),
+    ]
+
+
+def test_a_rejected_carousel_is_replaced_by_its_cards_and_the_footer_still_follows():
+    transport = FakeTransport()
+    transport.responses = [error(400, code=131009)]  # carousel rejected, the rest succeed
+    _, client = make(transport)
+    sent = send_replies(WA_ID, _carousel_replies(), client=client)
+    assert [s.template_key for s in sent] == [
+        "category.body",
+        "product.card",
+        "product.card",
+        "cards.footer",
+    ]
+    assert all(s.ok for s in sent)
+    assert len(transport.requests) == 5  # failed carousel + intro + 2 cards + footer
+    cards = transport.requests[2:4]
+    assert [r["json"]["interactive"]["action"]["buttons"][0]["reply"]["id"] for r in cards] == [
+        "ACT:addcard:p1",
+        "ACT:addcard:p2",
+    ]
+
+
+def test_if_the_fallback_cards_also_fail_delivery_stops():
+    transport = FakeTransport()
+    transport.responses = [error(400), error(400)]  # carousel, then the intro text
+    _, client = make(transport)
+    sent = send_replies(WA_ID, _carousel_replies(), client=client)
+    assert len(sent) == 1 and not sent[0].ok
+    assert len(transport.requests) == 2

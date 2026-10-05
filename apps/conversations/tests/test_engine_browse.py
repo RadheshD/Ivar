@@ -75,16 +75,16 @@ def test_menu_intent_without_category_is_the_main_menu(chat):
 def test_search_by_typing(chat, lang):
     onboard(chat, lang=lang)
     chat.send(PHRASES[lang]["search"])
-    assert chat.keys == ["product.detail", "product.ask_qty"]
-    assert chat.message("product.detail").body.startswith("Makhana Crunch")
+    assert chat.keys == ["product.card"]  # a single match is the same card as browsing
+    assert chat.cards[0].body.startswith("Makhana Crunch")
     assert "₹199" in chat.body
-    assert chat.ids == [f"ADD_TO_CART:makhana-crunch--std:{n}" for n in (1, 2, 3)]
+    assert len(chat.cards[0].buttons) == 2
 
 
 def test_typo_search(chat):
     onboard(chat)
     chat.send("makana")
-    assert chat.message("product.detail").body.startswith("Makhana Crunch")
+    assert chat.cards[0].body.startswith("Makhana Crunch")
 
 
 def test_ambiguous_product_offers_a_results_list_then_a_card(chat, backend):
@@ -232,11 +232,11 @@ def test_out_of_stock_product(chat, backend):
     onboard(chat)
     backend.set_stock("makhana-crunch", False)
     chat.send("do you have makhana")
-    assert chat.keys == ["product.unavailable"]
+    assert chat.keys == ["product.unavailable"]  # re-checked through the port; no card
     assert not any(i.startswith("ADD_TO_CART") for i in chat.ids)
 
 
 def test_catalog_names_are_passed_to_the_pipeline_as_hints(chat):
     onboard(chat)
     chat.send("roasted chana mix kavali")  # exact product name, matched via the hint
-    assert chat.message("product.detail").body.startswith("Roasted Chana Mix")
+    assert chat.cards[0].body.startswith("Roasted Chana Mix")

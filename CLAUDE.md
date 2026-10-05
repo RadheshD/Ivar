@@ -322,8 +322,7 @@ after the session has expired. An image that fails to send is retried once witho
 header rather than dropping the product (`apps/whatsapp/delivery.py`). No extra Redis
 calls: a page of 4 cards is still exactly one session load and one save, like any other
 turn. Verified all 55 candidate image paths with one HEAD request each (no retries): 45
-work, 10 don't (`image_path: null` for those, listed in `HANDOVER.md`'s open request
-#6, for the backend/content team to supply real file names). Tests added/rewritten:
+work; the other 10 were fixed on 2026-10-01 (see the carousel note below), so all 55 now have a path. Tests added/rewritten:
 renderer (`OutProductCard`), Fake Backend image wiring, a new `test_engine_cards.py`
 (add/order-now/stale/continue-shopping/session-expiry/image wiring), delivery
 image-retry, and the pre-existing category/search browse tests updated for the new
@@ -383,8 +382,8 @@ change). No `runserver` or worker started this session.
 search with 2+ matches now sends one compact list (mode `"results"`): name + price from
 the port, 10 rows if they fit, otherwise 9 + "Show more"; tapping a row
 (`ACT:showcard:<id>`) re-checks the product via `get_product` and sends its existing
-card (out-of-stock / missing get a message instead). A single match still goes straight
-to the product. Category browsing keeps cards; the "add N of X" list and the diet
+card (out-of-stock / missing get a message instead). A single match now sends its card (see the later note).
+Category browsing keeps cards; the "add N of X" list and the diet
 filter/notice are unchanged. (2) New setting `IVA_WEBSITE_SHOP_URL` (https only; dev
 `.env` set, `.env.example` empty): a "See full menu on website" main-menu row
 (`ACT:website`) sends a `cta_url` message; hidden if unset/invalid. Main-menu category
@@ -395,7 +394,38 @@ Flows cart screen recorded as deferred future work in `ARCHITECTURE.md` and
 921 passed (up from 891), `ruff check .` and `ruff format --check .` clean, no
 `runserver`/worker started. No new dependencies; no Backend Port change.
 
+**2026-09-30 single-match search → card:** a typed search (no quantity) with exactly one
+match now sends that product's card via `_show_card` (port re-check; out of stock /
+missing messages; diet notice and "Show anyway" kept) instead of the detail + quantity
+prompt. Requests with a quantity ("add 2 quinoa") keep the detail path. Single-match
+recovery never re-runs the search (`relist=False`), avoiding a stale-loop. Tests updated
+in `test_engine_browse/cart/failures`, new ones in `test_engine_search_list.py`.
+
+**2026-09-30 test isolation (tests only, no behaviour change):** a leftover real-Redis
+session key from an interrupted run made a webhook end-to-end test fail on the next run.
+Rules now enforced by the repo-root `conftest.py`:
+- **Test Redis prefix.** Under pytest, session, customer-lock and rate-limit keys use
+  `IVA_TEST_REDIS_KEY_PREFIX` (`iva-test:`, set in `config/settings/test.py`) instead of
+  the dev/prod `iva:` prefixes, so tests never touch dev keys and `reset_dev_data` never
+  sees test keys. Never point a test at a dev prefix.
+- **Cleanup.** An autouse fixture deletes every real Redis key a test touched in a
+  `finally` (also on failure), and a session-scoped fixture sweeps `iva-test:*` at the
+  start and end of the run (covers an interrupted run). Tests that write Redis keys need
+  no cleanup code of their own.
+- **Unique sender per run.** `apps/whatsapp/tests/fakes.py` builds `WA_ID` (and the e2e
+  sender IDs) with a random per-run token, so leftover state can never match.
+- `test_redis_test_isolation.py` proves test keys never start with a dev prefix.
+- Leftover dev keys are cleared with `python manage.py reset_dev_data --confirm`.
+
 **Work on one stage per session. Stop after reporting. Never start the next stage without explicit approval.**
+
+**2026-10-01 image fixes + category carousel:** (1) The 10 fixture products with no image now have `image_path` values (`ivar-oats` -> `eat/oats.jpg`, ... `breath-fresh-shot` -> `eat/breath-fresh.jpg`; full list in the fixture); each was checked once with a HEAD request against `IVA_PRODUCT_IMAGE_BASE_URL`: all `200`, `image/jpeg`, 24-331 KB (WhatsApp limit 5 MB). All 55 products now have an image. (2) Category pages go out as ONE interactive media carousel (up to 10 cards: image, name + price from the port, "Add to cart"/"Order now") followed by a "Show more"/"Menu" message; falls back to the 4-per-page cards if any product lacks an image, the page has under 2 products, or WhatsApp rejects the carousel (`OutCarousel.fallback`, `delivery.send_replies`) -- never dropping a product. Search, "add N of X" and the diet filter are unchanged. Details: `ARCHITECTURE.md` Contract decisions. te/hi `carousel.body` needs native review. The carousel payload follows Meta's documentation but has not been sent to a real number: first item in the README manual checklist. Verification: `ruff check` and `ruff format --check` clean; full `pytest -v` 963 passed, no runserver/worker running.
+
+**2026-10-01 follow-up ordering fix:** live test showed the "Show more / Menu" message arriving before the carousel. Sends were already strictly sequential (next send only after the previous call returned), so the cause is Meta preparing media messages asynchronously after acknowledging the send. `delivery.send_replies` now holds a buttons message that follows a carousel or image card until that message's `sent` status callback arrived (`apps/whatsapp/ordering.py`; the webhook records callbacks in the cache; worker polls; timeout `IVA_ORDER_WAIT_SECONDS`=5 then sends anyway; `IVA_ORDER_WAIT_STATUS` switches to `delivered`). Fails open. Details in `ARCHITECTURE.md`. Not yet verified on a real device. Verification: ruff clean, full `pytest -v` passed (count in the final report of that session), nothing left running.
+
+**2026-10-01 dev-only Fake Backend persistence:** new setting `IVA_FAKE_BACKEND_STATE_FILE` (dev `.env`: `.local-data/fake_backend.json`, relative to the project root; empty in `.env.example` and forced empty in test settings). When set, the Fake Backend saves customer state (profiles, carts, addresses, orders, idempotent checkouts, id counters) after every change, via a temp file plus `os.replace` so a crash cannot corrupt it, and loads it on startup, so state survives restarts and autoreloads. Only customer state is stored; the catalog always comes from the fixture (a saved cart line for a product no longer in the catalog is dropped on load). Each operation first checks the file's mtime/size and reloads if another process (a worker, or `reset_dev_data`) changed it, so a running server does not resurrect cleared state. A missing file starts empty silently; a corrupt one starts empty with a warning (never its contents) and is kept as `<file>.corrupt`. A failed save is logged and never crashes a request. Unset (tests, production) = in-memory only, unchanged. Production settings refuse to start with it set (`validate_production`). `reset_dev_data` reports the file's counts in its dry run and, only with `--confirm`, empties it (the file is kept, as an empty state). `.local-data/` is git-ignored. **Hard rule 16** added: never run `reset_dev_data` or delete any data unless the user explicitly asks in that session. Tests: `test_fake_backend_persistence.py`, `test_reset_state_file.py` (the command's other effects are stubbed there), `test_prod_settings.py`.
+
+**2026-10-01 address-step greetings fix:** typing "Hi" at the delivery-address prompt was saved as an address. At that step an EXACT whole-message greeting or global command (any language, romanized included) is now handled as such: greetings reply "Welcome back, <name>! You were in the middle of checkout." with Continue checkout (`ACT:resume`) / Menu, keeping cart and state; real addresses containing command words still work. Word lists live in `messages/{en,te,hi}.py` (te/hi need native review); logic is `engine._checkout_command`. Tests: `test_engine_checkout_commands.py`. Details in `ARCHITECTURE.md`.
 
 ## Hard rules
 
@@ -413,6 +443,8 @@ Flows cart screen recorded as deferred future work in `ARCHITECTURE.md` and
 12. Money is `Decimal` with a currency code, never float.
 13. Where ARCHITECTURE.md's Contract decisions section and the Reference PDF disagree, ARCHITECTURE.md wins. Record any new conflict there and tell me.
 14. **Never leave `runserver` or a worker running at the end of a session.** Stop only processes you started; ask before stopping any other process.
+15. **Never commit or push without explicit approval from the user.**
+16. **Never run `reset_dev_data` or delete any data (database rows, Redis keys, files) unless the user explicitly asks for it in that session.**
 
 ## Infrastructure policy
 

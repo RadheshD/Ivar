@@ -113,6 +113,19 @@ IVA_RATE_LIMIT_PER_MINUTE = env.int("IVA_RATE_LIMIT_PER_MINUTE", default=20)
 # (apps.whatsapp.locks). The lock's own TTL, a separate safety net for a crashed
 # holder, is fixed at locks.DEFAULT_TTL_SECONDS.
 IVA_CUSTOMER_LOCK_WAIT_SECONDS = env.int("IVA_CUSTOMER_LOCK_WAIT_SECONDS", default=30)
+# A buttons message sent right after a carousel or image card waits for that message's
+# WhatsApp status callback (apps.whatsapp.ordering) so it cannot overtake it. Seconds to
+# wait before sending anyway (0 turns the wait off) and the status that ends it
+# ("sent" or "delivered").
+IVA_ORDER_WAIT_SECONDS = env.float("IVA_ORDER_WAIT_SECONDS", default=5.0)
+IVA_ORDER_WAIT_STATUS = env.str("IVA_ORDER_WAIT_STATUS", default="sent")
+# Development only: persist the Fake Backend's customer state (profiles, carts, addresses,
+# orders) in this JSON file so it survives restarts and autoreloads. Empty (the default)
+# keeps it in memory only. A relative path is relative to the project root. The catalog
+# still comes from the fixture. Production refuses to start with this set.
+IVA_FAKE_BACKEND_STATE_FILE = env.str("IVA_FAKE_BACKEND_STATE_FILE", default="")
+if IVA_FAKE_BACKEND_STATE_FILE and not Path(IVA_FAKE_BACKEND_STATE_FILE).is_absolute():
+    IVA_FAKE_BACKEND_STATE_FILE = str(BASE_DIR / IVA_FAKE_BACKEND_STATE_FILE)
 # Development only: the webhook runs apps.whatsapp.tasks.process_inbound_inline()
 # synchronously instead of enqueuing a Celery task, so no worker or broker is needed.
 # Same claim/lock/rate-limit/at-most-once code path as the worker; only the lock-retry

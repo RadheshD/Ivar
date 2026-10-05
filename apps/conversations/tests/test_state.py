@@ -10,6 +10,7 @@ import pytest
 from django.conf import settings
 from django.test import override_settings
 
+from apps.conversations import state as state_module
 from apps.conversations.state import (
     InMemorySessionStore,
     RedisSessionStore,
@@ -53,7 +54,7 @@ def test_unusable_session_data_is_no_session(data):
 def test_key_never_contains_the_phone_number():
     key = session_key(WA)
     assert WA not in key
-    assert key.startswith("iva:conv:session:")
+    assert key.startswith(state_module.KEY_PREFIX)  # "iva-test:..." under pytest
     assert key == session_key(WA)
 
 

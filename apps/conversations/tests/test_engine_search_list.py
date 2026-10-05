@@ -8,6 +8,7 @@ from dataclasses import replace
 
 import pytest
 
+from apps.conversations.backend_port import NotFound
 from apps.conversations.channel import MAX_ROWS, OutList
 from apps.conversations.renderers import render
 from apps.iva_common.money import format_money
@@ -44,11 +45,78 @@ def many(backend):
     return install
 
 
-def test_single_result_goes_straight_to_the_product_not_a_list(chat):
+def test_single_result_sends_the_product_card_not_a_list(chat):
     onboard(chat)
     chat.send("do you have makhana")
-    assert chat.keys == ["product.detail", "product.ask_qty"]
+    assert chat.keys == ["product.card"]
     assert not chat.rows
+    assert chat.cards[0].body.splitlines()[0] == "Makhana Crunch"
+    assert [b.title for b in chat.cards[0].buttons] == ["Add to cart", "Order now"]
+
+
+def test_single_result_card_adds_one(chat, backend):
+    onboard(chat)
+    chat.send("do you have makhana")
+    chat.tap(chat.cards[0].buttons[0].id)
+    assert chat.keys == ["cart.added"]
+    customer = backend.get_or_create_customer(WA_ID)
+    assert [ln.quantity for ln in backend.get_cart(customer.id).lines] == [1]
+
+
+def test_single_result_out_of_stock_says_so(chat, backend):
+    onboard(chat)
+    backend.set_stock("makhana-crunch", False)
+    chat.send("do you have makhana")
+    assert chat.keys == ["product.unavailable"]
+    assert not chat.cards
+
+
+def test_single_result_missing_at_send_time_is_reported_gone(chat, backend):
+    onboard(chat)
+    real = backend.get_product
+
+    def gone(product_id):
+        raise NotFound("gone")
+
+    backend.get_product = gone
+    chat.send("do you have makhana")
+    backend.get_product = real
+    assert chat.keys[0] == "cards.stale"
+    assert not chat.cards
+
+
+def test_single_result_outside_the_diet_shows_the_notice_then_the_card(chat):
+    onboard(chat, diet="veg")
+    chat.send("do you have kebab")  # only match is non-veg
+    assert chat.keys == ["diet.hidden_all"]
+    assert "ACT:showall" in chat.ids
+    chat.tap("ACT:showall")
+    assert chat.keys[0] == "product.card"
+    assert chat.cards[0].body.startswith("Chicken Seekh Kebab Bites")
+
+
+def test_single_match_after_the_diet_filter_shows_card_and_notice(chat):
+    onboard(chat, diet="veg")
+    chat.send("do you have quinoa")  # Grilled Chicken Quinoa Bowl is hidden, Quinoa is not
+    assert chat.keys == ["product.card", "diet.hidden_some"]
+    assert chat.cards[0].body.startswith("Quinoa")
+
+
+def test_add_with_quantity_still_adds_that_quantity(chat, backend):
+    onboard(chat, diet="veg")  # a single visible match: quantity path, not a card
+    chat.send("add 2 quinoa")
+    assert chat.keys[0] == "cart.added"
+    customer = backend.get_or_create_customer(WA_ID)
+    assert {ln.name: ln.quantity for ln in backend.get_cart(customer.id).lines} == {"Quinoa": 2}
+
+
+def test_add_with_quantity_and_several_matches_keeps_the_quantity(chat, backend):
+    onboard(chat)
+    chat.send("add 2 quinoa")
+    assert chat.keys == ["choose.product"]
+    chat.tap("PRODUCT_SELECT:quinoa")
+    customer = backend.get_or_create_customer(WA_ID)
+    assert {ln.name: ln.quantity for ln in backend.get_cart(customer.id).lines} == {"Quinoa": 2}
 
 
 def test_five_results_are_a_list_with_name_and_port_price(chat, backend):
