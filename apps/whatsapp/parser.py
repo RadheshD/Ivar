@@ -14,6 +14,7 @@ from datetime import UTC, datetime
 
 MAX_TEXT_LENGTH = 4096
 MAX_ID_LENGTH = 200
+MAX_ORDER_ITEMS = 100
 _WA_ID_RE = re.compile(r"^\d{5,20}$")
 STATUSES = ("sent", "delivered", "read", "failed")
 
@@ -23,11 +24,13 @@ class InboundMessage:
     wa_message_id: str
     wa_id: str  # the customer's WhatsApp ID (phone number); never log it unmasked
     timestamp: datetime | None
-    message_type: str  # "text", "interactive", "button" or "unsupported"
+    message_type: str  # "text", "interactive", "button", "order" or "unsupported"
     text: str | None = None
     reply_id: str | None = None
     reply_title: str | None = None
     profile_name: str | None = None  # from contacts[].profile.name; never log it
+    # Normalised native catalog order (message_type "order"); see ``_order``.
+    order: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +74,47 @@ def _profile_names(value: dict) -> dict[str, str]:
     return names
 
 
+def _scalar(value):
+    """A JSON number or string as-is (kept raw: the engine validates it); else ``None``."""
+    return value if isinstance(value, int | float | str) else None
+
+
+def _order(data: object) -> dict:
+    """Normalise ``messages[].order``. Never raises; a malformed order has no items.
+
+    ``item_price`` and ``currency`` are carried only so the engine can notice a
+    difference from the backend; they are never used as a price.
+    """
+    raw = data if isinstance(data, dict) else {}
+    catalog_id = raw.get("catalog_id")
+    items: list[dict] = []
+    unreadable = 0
+    product_items = raw.get("product_items")
+    for item in product_items if isinstance(product_items, list) else []:
+        product_id = (
+            _short(item.get("product_retailer_id"), MAX_ID_LENGTH)
+            if isinstance(item, dict)
+            else None
+        )
+        if product_id is None or len(items) >= MAX_ORDER_ITEMS:
+            unreadable += 1
+            continue
+        items.append(
+            {
+                "product_id": product_id,
+                "quantity": _scalar(item.get("quantity")),
+                "price": _scalar(item.get("item_price")),
+                "currency": _short(item.get("currency"), 8),
+            }
+        )
+    return {
+        "catalog_id": _short(str(catalog_id), MAX_ID_LENGTH) if catalog_id is not None else None,
+        "text": _short(raw.get("text"), MAX_TEXT_LENGTH),
+        "items": items,
+        "unreadable": unreadable,
+    }
+
+
 def _message(data: dict, profile_names: dict[str, str] | None = None) -> InboundMessage | None:
     message_id = data.get("id")
     wa_id = data.get("from")
@@ -79,7 +123,7 @@ def _message(data: dict, profile_names: dict[str, str] | None = None) -> Inbound
     if not isinstance(wa_id, str) or not _WA_ID_RE.match(wa_id):
         return None
     kind = data.get("type")
-    text = reply_id = reply_title = None
+    text = reply_id = reply_title = order = None
     if kind == "text":
         text = _short((data.get("text") or {}).get("body"), MAX_TEXT_LENGTH)
     elif kind == "interactive":
@@ -91,6 +135,8 @@ def _message(data: dict, profile_names: dict[str, str] | None = None) -> Inbound
         button = data.get("button") or {}
         reply_id = _short(button.get("payload"), MAX_ID_LENGTH)
         reply_title = _short(button.get("text"), MAX_ID_LENGTH)
+    elif kind == "order":
+        order = _order(data.get("order"))
     else:
         kind = "unsupported"  # image, audio, location, sticker, ...
     return InboundMessage(
@@ -102,6 +148,7 @@ def _message(data: dict, profile_names: dict[str, str] | None = None) -> Inbound
         reply_id=reply_id,
         reply_title=reply_title,
         profile_name=(profile_names or {}).get(wa_id),
+        order=order,
     )
 
 

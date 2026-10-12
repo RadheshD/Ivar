@@ -108,6 +108,7 @@ def _process_inline(message_pk, message) -> None:
             message.reply_id,
             message.reply_title,
             message.profile_name,
+            message.order,
         )
     except Exception as exc:
         logger.error(

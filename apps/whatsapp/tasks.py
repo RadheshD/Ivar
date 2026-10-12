@@ -51,6 +51,7 @@ def enqueue(message_pk: int, message: InboundMessage) -> None:
         "reply_id": message.reply_id,
         "reply_title": message.reply_title,
         "profile_name": message.profile_name,
+        "order": message.order,
     }
     shown = {"message_pk": message_pk, "wa_id": mask_phone(message.wa_id)}
     process_inbound.apply_async(kwargs=kwargs, kwargsrepr=repr(shown))
@@ -62,6 +63,7 @@ def _replies(
     reply_id: str | None,
     reply_title: str | None,
     profile_name: str | None,
+    order: dict | None = None,
 ):
     """The rate limit is checked first: an over-the-cap message never reaches the
     engine or touches the session, it only ever gets the one-time "slow down" notice
@@ -70,7 +72,11 @@ def _replies(
     if not limited.allowed:
         return get_engine().rate_limited_reply(wa_id) if limited.warn else []
     inbound = Inbound(
-        text=text, reply_id=reply_id, reply_title=reply_title, profile_name=profile_name
+        text=text,
+        reply_id=reply_id,
+        reply_title=reply_title,
+        profile_name=profile_name,
+        order=order,
     )
     return get_engine().handle(wa_id, inbound)
 
@@ -82,6 +88,7 @@ def _process_once(
     reply_id: str | None,
     reply_title: str | None,
     profile_name: str | None = None,
+    order: dict | None = None,
 ) -> None:
     """One processing attempt, shared by the worker task and inline mode.
 
@@ -107,7 +114,7 @@ def _process_once(
     # block (session load -> engine -> session save), any other message from the same
     # customer waits its turn here instead of racing it.
     with customer_lock(wa_id, wait_seconds=settings.IVA_CUSTOMER_LOCK_WAIT_SECONDS):
-        replies = _replies(wa_id, text, reply_id, reply_title, profile_name)
+        replies = _replies(wa_id, text, reply_id, reply_title, profile_name, order)
         for sent in send_replies(
             wa_id, replies, client=client, wait_for_status=ordering.wait_for_status
         ):
@@ -132,9 +139,10 @@ def process_inbound(
     reply_id: str | None = None,
     reply_title: str | None = None,
     profile_name: str | None = None,
+    order: dict | None = None,
 ) -> None:
     try:
-        _process_once(message_pk, wa_id, text, reply_id, reply_title, profile_name)
+        _process_once(message_pk, wa_id, text, reply_id, reply_title, profile_name, order)
     except CustomerLockTimeout as exc:
         # Raised before the ``with`` block's body ever starts, so the engine has not
         # run: releasing the claim and re-enqueuing is safe, at-most-once still holds
@@ -160,6 +168,7 @@ def process_inbound_inline(
     reply_id: str | None = None,
     reply_title: str | None = None,
     profile_name: str | None = None,
+    order: dict | None = None,
 ) -> None:
     """Synchronous equivalent of ``process_inbound`` for ``IVA_INLINE_PROCESSING``
     (development only): runs the same ``_process_once`` core directly in the webhook
@@ -170,7 +179,7 @@ def process_inbound_inline(
     """
     for attempt in range(MAX_LOCK_RETRIES + 1):
         try:
-            _process_once(message_pk, wa_id, text, reply_id, reply_title, profile_name)
+            _process_once(message_pk, wa_id, text, reply_id, reply_title, profile_name, order)
             return
         except CustomerLockTimeout:
             if attempt < MAX_LOCK_RETRIES:
