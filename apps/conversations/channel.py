@@ -27,6 +27,10 @@ class Inbound:
     # The WhatsApp contact's own profile name, if the webhook included one. Used only
     # to greet a customer who has no saved name yet; never logged.
     profile_name: str | None = None
+    # A native WhatsApp catalog order, already normalised by the webhook parser:
+    # ``{"catalog_id", "text", "items": [{"product_id", "quantity", "price", "currency"}],
+    # "unreadable": int}``. Prices in it are never trusted.
+    order: dict | None = None
 
     @classmethod
     def typed(cls, text: str) -> Inbound:

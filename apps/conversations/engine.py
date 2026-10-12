@@ -20,13 +20,15 @@ import time
 import unicodedata
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import urlparse
 
 from django.conf import settings
 from django.utils import timezone
 
-from apps.ai.intents import Entities, Intent, IntentResult, build_reply_id
+from apps.ai.classifier import CatalogEntry
+from apps.ai.intents import Entities, Intent, IntentResult, LLMItem, Stage, build_reply_id
+from apps.ai.llm_fallback import LLMContext
 from apps.ai.pipeline import IntentPipeline, pipeline_from_settings
 from apps.ai.text import normalize
 from apps.iva_common.money import format_money
@@ -51,6 +53,7 @@ from .backend_port import (
     ProductSummary,
     ProductUnavailable,
 )
+from .catalog_order import PORT_MAX_QUANTITY, ValidatedOrder, effective_cap, validate_order
 from .channel import (
     MAX_CAROUSEL_CARDS,
     MAX_ROWS,
@@ -76,6 +79,7 @@ from .messages import (
     ORDER_STATUS_WORDS,
     t,
 )
+from .recommend_flow import RecommendFlow
 from .state import Session, SessionStore, SessionStoreError, State, store_from_settings
 
 logger = logging.getLogger(__name__)
@@ -106,6 +110,7 @@ _CONFIRMABLE = (
     Intent.LANGUAGE_SELECT,
 )
 _KNOWN_PAYMENT = {s.value for s in PaymentStatus}
+_LLM_CART_INTENTS = (Intent.ADD_TO_CART, Intent.REMOVE_FROM_CART, Intent.UPDATE_QUANTITY)
 
 
 class _Turn:
@@ -160,7 +165,7 @@ class _Found:
     hidden: int  # matches hidden by the saved diet
 
 
-class ConversationEngine:
+class ConversationEngine(RecommendFlow):
     def __init__(
         self,
         backend: BackendPort | None = None,
@@ -176,6 +181,7 @@ class ConversationEngine:
         self._hints_ttl = hints_ttl
         self._clock = clock
         self._hints_cache: tuple[float, tuple[str, ...], tuple[str, ...]] | None = None
+        self._llm_catalog_cache: tuple[float, tuple[CatalogEntry, ...]] | None = None
 
     @property
     def backend(self) -> BackendPort:
@@ -328,7 +334,7 @@ class ConversationEngine:
         self._hints_cache = (now + self._hints_ttl, tuple(products), categories)
         return self._hints_cache[1], self._hints_cache[2]
 
-    def _understand(self, inbound: Inbound) -> IntentResult:
+    def _understand(self, inbound: Inbound, llm_context: LLMContext | None = None) -> IntentResult:
         products, categories = self._hints()
         text = inbound.text if inbound.text is not None else inbound.reply_title
         return self.pipeline.understand(
@@ -336,11 +342,71 @@ class ConversationEngine:
             reply_id=inbound.reply_id,
             product_names=products,
             category_names=categories,
+            llm_context=llm_context,
         )
+
+    # States in which free text may go to the LLM fallback. Everything else (language
+    # and diet selection, address entry, order confirmation, payment) is handled by
+    # fixed rules only.
+    _LLM_STATES = frozenset(
+        {State.NEW, State.MAIN_MENU, State.GROUP, State.CATEGORY, State.PRODUCT, State.CART}
+    )
+
+    def _llm_catalog(self) -> tuple[CatalogEntry, ...]:
+        """Compact catalog allow-list (slug = port product ID, name, category), cached
+        briefly. Empty if the port fails (then the LLM simply is not used)."""
+        now = self._clock()
+        if self._llm_catalog_cache and now < self._llm_catalog_cache[0]:
+            return self._llm_catalog_cache[1]
+        try:
+            names = {cat.id: cat.name for cat in self._all_categories()}
+            entries: list[CatalogEntry] = []
+            offset = 0
+            while len(entries) < MAX_HINT_PRODUCTS:
+                page, total = self.backend.list_products(limit=MAX_PAGE_SIZE, offset=offset)
+                entries.extend(
+                    CatalogEntry(p.id, p.name, names.get(p.category_id, "")) for p in page
+                )
+                offset += len(page)
+                if not page or offset >= total:
+                    break
+        except Exception as exc:
+            logger.warning("engine: llm catalog unavailable error=%s", type(exc).__name__)
+            return ()
+        self._llm_catalog_cache = (now + self._hints_ttl, tuple(entries))
+        return self._llm_catalog_cache[1]
+
+    def _llm_context(self, c: _Turn, inbound: Inbound) -> LLMContext | None:
+        """The context that lets the pipeline call the LLM, or ``None`` when it must not:
+        feature off, a button/list tap, an unfinished flow state, or a pending question."""
+        if not getattr(self.pipeline, "llm_fallback_enabled", False):
+            return None
+        if inbound.reply_id or not (inbound.text or "").strip():
+            return None
+        if c.session.state not in self._LLM_STATES or c.session.pending is not None:
+            return None
+        catalog = self._llm_catalog()
+        if not catalog:
+            return None
+        return LLMContext(
+            catalog, c.customer.id, PORT_MAX_QUANTITY, categories=self._llm_categories()
+        )
+
+    def _llm_categories(self) -> tuple[tuple[str, str], ...]:
+        try:
+            return tuple((cat.id, cat.name) for cat in self._all_categories())
+        except Exception as exc:
+            logger.warning("engine: llm categories unavailable error=%s", type(exc).__name__)
+            return ()
 
     # ------------------------------------------------------------------ dispatch
 
     def _dispatch(self, c: _Turn, inbound: Inbound) -> list[Outbound]:
+        if inbound.order is not None:
+            return self._catalog_order(c, inbound.order)
+        emergency = self._emergency_check(c, inbound)
+        if emergency is not None:
+            return emergency
         if not c.customer.onboarding_complete:
             return self._onboarding(c, inbound)
         if inbound.reply_id and inbound.reply_id.startswith(ACT):
@@ -361,7 +427,7 @@ class ConversationEngine:
                 return command
             return self._address_typed(c, text)
 
-        result = self._understand(inbound)
+        result = self._understand(inbound, self._llm_context(c, inbound))
         logger.info("engine: intent=%s stage=%s state=%s", result.intent, result.stage, state)
         return self._intent(c, result)
 
@@ -370,6 +436,8 @@ class ConversationEngine:
         e = r.entities
         pending, s.pending = s.pending, None
         intent = r.intent
+        if r.request is not None:  # grounded recommendation flow (read-only)
+            return self._recommendation(c, r.request)
 
         if c.fresh and intent in (Intent.GREETING, Intent.FALLBACK, Intent.CLARIFY):
             welcome = self._text(c, "welcome_back", name=c.customer.name or "")
@@ -418,7 +486,23 @@ class ConversationEngine:
             if e.product_query:
                 return self._search(c, e.product_query)
             return self._ask_product(c)
+        if (
+            r.stage is Stage.FUZZY
+            and intent in _LLM_CART_INTENTS
+            and getattr(settings, "IVA_FUZZY_CART_CONFIRM", True)
+        ):
+            confirm = self._fuzzy_cart_confirmation(c, r)
+            if confirm is not None:
+                logger.info("engine: stage=fuzzy outcome=cart_confirmation intent=%s", intent)
+                return confirm
+        if r.stage is Stage.LLM and intent in _LLM_CART_INTENTS and r.llm_items:
+            confirm = self._llm_cart_confirmation(c, r)
+            if confirm is not None:
+                return confirm
         if intent is Intent.ADD_TO_CART:
+            if r.stage is Stage.LLM and not e.reference_id and e.product_query:
+                # An LLM-derived add with no usable catalog slug: browse (read-only), never add.
+                return self._search(c, e.product_query)
             if e.reference_id:
                 variant_id = self._unref(c, e.reference_id)
                 if e.quantity is not None:
@@ -613,6 +697,12 @@ class ConversationEngine:
             return self._show_card(c, self._unref(c, arg))
         elif name == "planadd":
             return self._add_all_plan_picks(c)
+        elif name == "llmyes":
+            return self._llm_apply(c)
+        elif name == "llmno":
+            s.pending = None
+            buttons = (self._button(c, Intent.VIEW_CART.value, "btn.cart"), self._menu_button(c))
+            return [OutButtons(t(c.lang, "llm.cancelled"), buttons, "llm.cancelled")]
         return [self._fallback(c)]
 
     # ------------------------------------------------------------------ menu & browsing
@@ -1040,6 +1130,11 @@ class ConversationEngine:
                 s.state = State.CATEGORY
                 s.listing = {**listing, "all": False, "offset": 0, "ids": []}
                 return [self._diet_notice(c, "diet.hidden_all", query=query)]
+            # With the LLM layer on, the query can be a processed fragment of a whole
+            # sentence, so the reply never repeats it.
+            if getattr(self.pipeline, "llm_fallback_enabled", False):
+                body = t(c.lang, "search.none_neutral")
+                return [OutButtons(body, (self._menu_button(c),), "search.none_neutral")]
             body = t(c.lang, "search.none", query=query)
             return [OutButtons(body, (self._menu_button(c),), "search.none")]
         if found.total == 1 and disambiguating:
@@ -1291,6 +1386,205 @@ class ConversationEngine:
         if skipped:
             replies.append(self._text(c, "plan.picks_skipped_at_add", count=skipped))
         return [*replies, *self._cart_messages(c, cart)]
+
+    # ------------------------------------------------------------------ LLM cart requests
+
+    def _llm_cart_confirmation(self, c: _Turn, r: IntentResult) -> list[Outbound] | None:
+        """Ask before changing the cart for a request the LLM understood. Nothing changes
+        until the customer taps Yes. ``None`` = no usable line (the caller falls back to the
+        read-only/rules handling). Every slug is re-checked through the port here."""
+        intent = r.intent
+        lines: dict[str, dict] = {}
+        cart = self.backend.get_cart(c.customer.id) if intent is not Intent.ADD_TO_CART else None
+        for item in r.llm_items:
+            if not item.product_slug:
+                continue
+            if intent is Intent.ADD_TO_CART:
+                try:
+                    product = self.backend.get_product(item.product_slug)
+                except (NotFound, ProductUnavailable):
+                    continue
+                if not product.in_stock or not any(v.in_stock for v in product.variants):
+                    continue
+                line = lines.setdefault(
+                    product.id,
+                    {
+                        "variant_id": self._card_default_variant(product),
+                        "name": product.name,
+                        "qty": 0,
+                    },
+                )
+                line["qty"] += item.quantity or 1
+            else:
+                cart_line = next(
+                    (ln for ln in cart.lines if ln.product_id == item.product_slug), None
+                )
+                if cart_line is None or (intent is Intent.UPDATE_QUANTITY and not item.quantity):
+                    continue
+                lines[cart_line.line_id] = {
+                    "line_id": cart_line.line_id,
+                    "name": cart_line.name,
+                    "qty": item.quantity or cart_line.quantity,
+                }
+        if not lines:
+            return None
+        action = {Intent.ADD_TO_CART: "add", Intent.REMOVE_FROM_CART: "remove"}.get(
+            intent, "update"
+        )
+        picked = [{**ln, "qty": min(ln["qty"], PORT_MAX_QUANTITY)} for ln in lines.values()]
+        c.session.pending = {"kind": "llm_confirm", "action": action, "lines": picked}
+        if action == "update":
+            shown = ", ".join(f"{ln['name']} → {ln['qty']}" for ln in picked)
+        elif action == "remove":
+            shown = ", ".join(ln["name"] for ln in picked)
+        else:
+            shown = ", ".join(f"{ln['qty']} × {ln['name']}" for ln in picked)
+        key = f"llm.confirm_{action}"
+        buttons = (
+            self._button(c, f"{ACT}llmyes", "btn.yes"),
+            self._button(c, f"{ACT}llmno", "btn.no"),
+        )
+        return [OutButtons(t(c.lang, key, items=shown), buttons, key)]
+
+    def _fuzzy_cart_confirmation(self, c: _Turn, r: IntentResult) -> list[Outbound] | None:
+        """A cart change guessed by the fuzzy stage (typo correction) is never applied on
+        its own: it goes through the same Yes/No question as an LLM-derived change. Only the
+        cases that would change the cart straight away are intercepted (one clear product or
+        line and a quantity); anything that already asks the customer something stays as is."""
+        e = r.entities
+        if not e.product_query or e.reference_id:
+            return None
+        if r.intent is Intent.ADD_TO_CART:
+            if e.quantity is None:
+                return None  # the existing flow asks how many first: no cart change
+            matches = self.backend.resolve_product_names(e.product_query, limit=3)
+            exact = [m for m in matches if _fold(m.name) == _fold(e.product_query)]
+            matches = exact if len(exact) == 1 else matches
+            if len(matches) != 1:
+                return None  # several matches: the customer picks one by tapping
+            items = (LLMItem(matches[0].id, e.product_query, e.quantity),)
+        else:
+            lines = [
+                ln
+                for ln in self.backend.get_cart(c.customer.id).lines
+                if _words_match(e.product_query, ln.name)
+            ]
+            if len(lines) != 1:
+                return None
+            quantity = e.quantity if r.intent is Intent.UPDATE_QUANTITY else None
+            if r.intent is Intent.UPDATE_QUANTITY and quantity is None:
+                return None
+            items = (LLMItem(lines[0].product_id, e.product_query, quantity),)
+        return self._llm_cart_confirmation(c, replace(r, llm_items=items))
+
+    def _llm_apply(self, c: _Turn) -> list[Outbound]:
+        pending, c.session.pending = c.session.pending, None
+        if not pending or pending.get("kind") != "llm_confirm":
+            return self._main_menu(c)  # stale tap: nothing is waiting
+        action, cid, skipped = pending["action"], c.customer.id, 0
+        cart = None
+        for line in pending["lines"]:
+            try:
+                if action == "add":
+                    cart = self.backend.add_item(cid, line["variant_id"], line["qty"])
+                elif action == "remove":
+                    cart = self.backend.remove_item(cid, line["line_id"])
+                else:
+                    cart = self.backend.update_quantity(cid, line["line_id"], line["qty"])
+            except (ProductUnavailable, NotFound):
+                skipped += 1
+        self._cart_changed(c)
+        if cart is None:
+            cart = self.backend.get_cart(cid)
+        replies = [self._text(c, "llm.done")]
+        if skipped:
+            replies.append(self._text(c, "plan.picks_skipped_at_add", count=skipped))
+        return [*replies, *self._cart_messages(c, cart)]
+
+    # ------------------------------------------------------------------ native catalog order
+
+    def _catalog_order(self, c: _Turn, order: dict) -> list[Outbound]:
+        """A native WhatsApp cart order. Product IDs and quantities are all that is taken
+        from the message; names, stock and prices come from the port. The order is the
+        customer's authoritative selection, so it REPLACES the IVA cart."""
+        if not c.customer.onboarding_complete:
+            return [self._text(c, "order.setup_first"), *self._onboarding(c, Inbound())]
+        expected = getattr(settings, "IVA_CATALOG_ID", "") or ""
+        if expected and order.get("catalog_id") != expected:
+            logger.info("engine: catalog order ignored (other catalog)")
+            return self._order_menu_reply(c, "order.wrong_catalog")
+        items = order.get("items") or []
+        if not items:
+            logger.info("engine: catalog order unreadable unreadable=%s", order.get("unreadable"))
+            return self._order_menu_reply(c, "order.unreadable")
+        cap = effective_cap(getattr(settings, "IVA_CATALOG_ORDER_MAX_QTY", 10))
+        result = validate_order(self.backend, items, cap)
+        result.unreadable += int(order.get("unreadable") or 0)
+        if not result.lines:
+            self._log_order(result, [])
+            return [*self._order_notes(c, result), *self._order_menu_reply(c, "order.none_added")]
+        added = self._replace_cart(c, result)
+        self._log_order(result, [ln.product_id for ln in added])
+        self._cart_changed(c)
+        cart = self.backend.get_cart(c.customer.id)
+        return [
+            self._text(c, "order.cart_replaced"),
+            *self._order_notes(c, result),
+            *self._cart_messages(c, cart),
+        ]
+
+    def _order_menu_reply(self, c: _Turn, key: str) -> list[Outbound]:
+        return [OutButtons(t(c.lang, key), (self._browse_menu_button(c),), key)]
+
+    def _replace_cart(self, c: _Turn, result: ValidatedOrder) -> list:
+        """Make the cart hold exactly the validated lines. Lines already in the cart are
+        updated in place, new ones added, the rest removed, so a failure part-way never
+        leaves the customer with an emptied cart."""
+        cid = c.customer.id
+        existing = {ln.variant_id: ln for ln in self.backend.get_cart(cid).lines}
+        added = []
+        for line in result.lines:
+            try:
+                current = existing.get(line.variant_id)
+                if current is not None:
+                    self.backend.update_quantity(cid, current.line_id, line.quantity)
+                else:
+                    self.backend.add_item(cid, line.variant_id, line.quantity)
+            except (ProductUnavailable, NotFound, InvalidQuantity):
+                result.unavailable.append(line.name)  # went away between check and add
+                continue
+            added.append(line)
+        keep = {ln.variant_id for ln in added}
+        for variant_id, current in existing.items():
+            if added and variant_id not in keep:
+                self.backend.remove_item(cid, current.line_id)
+        return added
+
+    def _order_notes(self, c: _Turn, r: ValidatedOrder) -> list[Outbound]:
+        notes: list[Outbound] = []
+        if r.unknown:
+            notes.append(self._text(c, "order.excluded_unknown", names="; ".join(r.unknown)))
+        if r.unavailable:
+            names = "; ".join(r.unavailable)
+            notes.append(self._text(c, "order.excluded_unavailable", names=names))
+        if r.bad_quantity:
+            notes.append(self._text(c, "order.excluded_quantity", names="; ".join(r.bad_quantity)))
+        if r.unreadable:
+            notes.append(self._text(c, "order.excluded_unreadable", count=r.unreadable))
+        if r.clamped:
+            notes.append(self._text(c, "order.clamped", max=r.cap, names="; ".join(r.clamped)))
+        if r.price_changed:
+            notes.append(self._text(c, "order.price_changed", names="; ".join(r.price_changed)))
+        return notes
+
+    @staticmethod
+    def _log_order(r: ValidatedOrder, accepted: list[str]) -> None:
+        logger.info(
+            "engine: catalog order accepted=%d %s unknown=%d %s unavailable=%d "
+            "bad_quantity=%d unreadable=%d clamped=%d price_changed=%d",
+            len(accepted), accepted, len(r.unknown), r.unknown, len(r.unavailable),
+            len(r.bad_quantity), r.unreadable, len(r.clamped), len(r.price_changed),
+        )  # fmt: skip
 
     # ------------------------------------------------------------------ cart
 

@@ -92,6 +92,22 @@ def _state_file_from_settings() -> str:
     return getattr(settings, "IVA_FAKE_BACKEND_STATE_FILE", "") or ""
 
 
+_REVISION_RE = re.compile(rb'"revision"\s*:\s*(\d+)')
+
+
+def _file_revision(path: Path | str) -> int:
+    """The save counter stored in a state file (0 if the file is missing, unreadable or
+    from before the counter existed). Only the first bytes are read: the counter is the
+    first key of the saved ``seq`` object."""
+    try:
+        with Path(path).open("rb") as fh:
+            head = fh.read(256)
+    except OSError:
+        return 0
+    match = _REVISION_RE.search(head)
+    return int(match.group(1)) if match else 0
+
+
 def state_file_counts(path: Path | str) -> dict[str, int]:
     """Plain counts of what a state file holds (never any values); zeros if unreadable."""
     try:
@@ -175,7 +191,10 @@ class FakeBackend:
         if state_file is None:
             state_file = _state_file_from_settings()
         self._state_file = Path(state_file) if state_file else None
-        self._file_sig: tuple[int, int] | None = None
+        self._file_sig: tuple[int, int, int] | None = None
+        # Monotonic save counter, written into every saved state. Part of the change
+        # signature, so a same-size rewrite inside one timestamp tick is still noticed.
+        self._revision = 0
         self._dirty = False
         self._lock = threading.RLock()
         self._reset_state()
@@ -200,12 +219,14 @@ class FakeBackend:
     def _changed(self) -> None:
         self._dirty = True
 
-    def _stat_sig(self) -> tuple[int, int] | None:
+    def _stat_sig(self) -> tuple[int, int, int] | None:
+        """``(revision, mtime_ns, size)`` of the state file, or ``None`` if it is missing.
+        The revision does not depend on the file system's timestamp resolution."""
         try:
             st = self._state_file.stat()
         except OSError:
             return None
-        return (st.st_mtime_ns, st.st_size)
+        return (_file_revision(self._state_file), st.st_mtime_ns, st.st_size)
 
     def _refresh(self) -> None:
         if self._state_file is None or self._stat_sig() == self._file_sig:
@@ -237,6 +258,9 @@ class FakeBackend:
     def _save_state_file(self) -> None:
         if self._state_file is None:
             return
+        previous = self._revision
+        # Never behind what is on disk, even if another process saved since we loaded.
+        self._revision = max(self._revision, _file_revision(self._state_file)) + 1
         data = json.dumps(self._snapshot(), indent=1)
         tmp = self._state_file.with_name(self._state_file.name + ".tmp")
         try:
@@ -252,6 +276,7 @@ class FakeBackend:
                     time.sleep(0.05)
             self._file_sig = self._stat_sig()
         except OSError as exc:
+            self._revision = previous  # nothing was saved
             logger.error("fake backend: could not save state file (%s)", type(exc).__name__)
 
     def _snapshot(self) -> dict:
@@ -260,8 +285,10 @@ class FakeBackend:
 
         return {
             "version": 1,
-            "seq": {"customer": self._customer_seq, "line": self._line_seq,
-                    "address": self._address_seq},
+            # "revision" is first on purpose: see _file_revision. It lives inside "seq"
+            # (the counters) so the file's top-level shape is unchanged.
+            "seq": {"revision": self._revision, "customer": self._customer_seq,
+                    "line": self._line_seq, "address": self._address_seq},
             "customers": [asdict(c) for c in self._customers.values()],
             "carts": {
                 cid: [asdict(line) for line in lines.values()]
@@ -304,6 +331,9 @@ class FakeBackend:
         if data.get("version") != 1:
             raise ValueError("unknown state version")
         seq = data["seq"]
+        revision = seq.get("revision", 0)  # files from before the counter: revision 0
+        if isinstance(revision, int) and not isinstance(revision, bool) and revision > 0:
+            self._revision = max(self._revision, revision)
         self._customer_seq, self._line_seq = int(seq["customer"]), int(seq["line"])
         self._address_seq = int(seq["address"])
         for c in data["customers"]:
