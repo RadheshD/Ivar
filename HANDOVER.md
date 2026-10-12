@@ -281,6 +281,10 @@ each was introduced per `CLAUDE.md`/`ARCHITECTURE.md`.
 | `IVA_LLM_TIMEOUT_S`, `IVA_LLM_MIN_CONFIDENCE` | Call timeout; below this confidence the bot asks instead of acting | `4`, `0.7` | LLM fallback (2026-10-06) |
 | `IVA_LLM_DAILY_CAP`, `IVA_LLM_CUSTOMER_PER_MINUTE` | Global daily call cap (Redis) and per-customer per-minute cap | `500`, `3` | LLM fallback (2026-10-06) |
 | `IVA_LLM_BREAKER_FAILURES`, `IVA_LLM_BREAKER_COOLDOWN_S` | Circuit breaker: consecutive failures to open, cool-off seconds | `5`, `120` | LLM fallback (2026-10-06) |
+| `IVA_LLM_MAX_INPUT_CHARS` | Longest message sent to the model (longer = skipped, never truncated) | integer, default in `.env.example` | LLM guards |
+| `IVA_LLM_DAILY_TOKEN_CAP`, `IVA_LLM_MINUTE_TOKEN_CAP` | Daily and per-minute token budgets for model calls | integer; empty/0 = built-in default (never unlimited); set the daily one explicitly in production | LLM guards |
+| `IVA_LLM_MINUTE_CAP`, `IVA_LLM_CUSTOMER_DAILY_CAP`, `IVA_LLM_CUSTOMER_BUDGET_SHARE_PCT` | Global per-minute request cap; per-customer daily cap; one customer's share of the daily token budget | defaults in `.env.example` | LLM guards |
+| `IVA_LLM_TRIP_*` | Auto-trip of the kill switch: window, minimum calls, failure and rejection rates, cool-off | defaults in `.env.example` | LLM guards |
 | `IVA_LLM_RECOMMEND_ENABLED` | Grounded product recommendations (needs `IVA_LLM_ENABLED`) | `false` (default) or `true` | Recommendations (2026-10-06) |
 | `IVA_LLM_RECOMMEND_MAX_PICKS` | Products shown per recommendation | integer, default `4` | Recommendations (2026-10-06) |
 | `IVA_SAFETY_KEYWORDS_ENABLED` | Emergency keyword check on free text (independent of the LLM flags) | `true` (default); only turn off to test | Health-aware recommendations (2026-10-07) |
@@ -501,3 +505,64 @@ run as part of this work:**
    get replies, in order.
 3. Run one full journey: onboarding → add to cart → checkout → order status.
 4. Stop the worker afterwards and set `IVA_INLINE_PROCESSING` back to `true`.
+
+## 12. Operations runbook: the model (Groq) layer
+
+The model is optional. Prices, diet words, sorting, emergency and medical keyword replies and cart
+guards are code and keep working when it is off. The allergen caution currently needs the model
+(known gap, tracked by an xfail test). These commands need `REDIS_URL` set so the flag is shared by every
+process (without it the flag is per-process and the command says so).
+
+**Switch the model off (and on) without a restart**
+
+```powershell
+python manage.py llm_killswitch --on       # no model call is made from the next message
+python manage.py llm_killswitch --status
+python manage.py llm_killswitch --off
+```
+
+The system can also switch itself off for a cool-off period when the failure or validation-
+rejection rate gets too high; `--status` shows `auto-tripped`. A manual switch is never overridden
+by an automatic one. If the shared store cannot be read, the model stays off.
+
+**Check usage and budget**
+
+```powershell
+python manage.py llm_stats                 # today's calls, tokens, budget used, skips by reason
+```
+
+Output is counts only (no customer text, identifiers or secrets). Skips by reason tell you what is
+limiting calls (budget, per-customer limit, provider pause, kill switch, input limit).
+
+**Suspected key leak**
+
+1. Switch the model off: `llm_killswitch --on`.
+2. Revoke the key in the provider console and create a new one.
+3. Put the new key only in the environment (`GROQ_API_KEY`); restart web and worker.
+4. Check provider usage for calls you did not make; check application logs and the repository
+   history for the old value (rotate anyway; do not rewrite shared history).
+5. Switch back on: `llm_killswitch --off`.
+
+**Provider limits.** A 429 pauses model calls for the period the provider advises; customers get
+the normal code-only reply meanwhile. Repeated failures open the circuit breaker the same way.
+
+## 13. Test isolation and the cost of the model guard
+
+**Redis in tests.** Tests that touch the real, shared Redis server use only keys under the test
+root (`IVA_TEST_REDIS_KEY_PREFIX`, "iva-test:") and a private Celery queue name; the cache used by
+the application code under test is in-memory. For `reset_dev_data`, an autouse fixture in
+`apps/whatsapp/tests/test_reset_dev_data.py` repoints the command's key prefixes, queue and purge
+at test values for EVERY test in that file and asserts loudly that none of them equals or sits under
+the dev root, the real dev prefixes or the shared queue. Celery's `control.purge()` empties every
+queue, so the suite never calls it (a test-queue-only purge stands in; a mocked test pins that the
+production function still uses the supported API). Those tests use long socket timeouts and a
+bounded retry, because the remote server's first TLS handshake is sometimes slow. The session
+fixture in the root `conftest.py` sweeps only the test root.
+
+**Guard cost.** A guarded model call used to cost about thirty sequential Redis commands (kill
+switch, pause, breaker, request counters, token reservation, settlement, metrics, rolling window):
+seconds of added latency at a typical round-trip time. On Redis the guard now does its work in two
+server-side scripts, one before and one after the call (`apps/ai/llm_scripts.py`): two commands and
+two round trips per call, still atomic. The in-memory cache (tests, runs without `REDIS_URL`) keeps
+the plain per-command code; `apps/ai/tests/test_llm_guard_scripts.py` runs the same scenarios on both
+and checks the command count on Redis.

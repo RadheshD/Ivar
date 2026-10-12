@@ -749,6 +749,24 @@ Cart → Checkout validation → PENDING order + PENDING payment → payment lin
 - No admin panel, admin route or admin UI.
 - Production: HTTPS redirect (health paths exempt), HSTS, secure cookies, explicit hosts, no wildcards, fail-fast on missing configuration.
 
+### Model-call threat model
+
+What an attacker (a customer, or text a customer forwards) can try against the model layer, and the
+mechanism that answers each. Mechanisms only; the operational values live in `.env.example`.
+
+| Threat | Mechanism |
+|---|---|
+| Cost or quota exhaustion (flooding, one customer, many customers) | Per-customer, per-minute, daily and token budgets in Redis; a customer's share of the daily budget is capped; counters that cannot be read fail closed. A provider rate-limit response pauses all callers for the advised period. |
+| Prompt injection and instructions inside a message | The message is sent as a JSON string and the system prompt states it is data. The model's reply is validated against a strict schema and allow-lists; unknown fields reject the whole reply; the model never writes customer-visible text. |
+| Model text reaching a customer | Only allow-listed values and a sanitised product word (control characters, markup, links and personal-data-like tokens removed, length-capped) rendered inside a fixed template. |
+| Personal data leaving the process | Only the normalised, redacted message plus the fixed prompt and allow-lists are sent: no phone, name, address, customer or order identifier, cart, or conversation history. A test captures the exact request bodies. Over-length, empty-after-redaction and non-text messages are not sent. |
+| Unconfirmed cart changes | A model-derived cart change is only ever offered as a Yes/No question; nothing changes without Yes. |
+| Provider outage or bad output | Never retried on the customer path; a shared circuit breaker; a rolling failure/rejection rate trips a runtime kill switch automatically. |
+| Key leakage | The key is only in the request header; errors carry fixed categories; the object representation hides it; settings dumps mask it; a test checks exceptions, logs and tracebacks. |
+| Safety and ordering rules | Emergency and medical keyword replies, price limits, diet words, sort and cart guards are handled in code independently of the model. The allergen caution currently needs the model (known gap, tracked by an xfail test). The kill switch and every budget disable only model calls. |
+
+Residual risks are listed in the operations runbook (`HANDOVER.md` §12) and the session notes.
+
 ## 11. Failure handling
 
 | Failure | Behaviour |
