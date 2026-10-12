@@ -87,6 +87,22 @@ def _redis_test_keys(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _fresh_llm_state():
+    """The LLM kill switch, pause, budgets and metrics live in the shared cache: every test
+    starts (and ends) with none of it set, so tests never see each other's counters."""
+    from apps.ai import llm_state
+
+    # Only ever clear an in-memory cache: clearing a real Redis would flush shared data.
+    local = settings.CACHES["default"]["BACKEND"].endswith("LocMemCache")
+    mine = llm_state.cache  # the object itself: a test may swap the module attribute
+    if local:
+        mine.clear()
+    yield
+    if local:
+        mine.clear()
+
+
+@pytest.fixture(autouse=True)
 def _fresh_backend():
     """Every test starts with a new shared backend instance."""
     reset_backend()
