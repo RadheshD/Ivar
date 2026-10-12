@@ -1,0 +1,473 @@
+{
+ "_note": "Synthetic golden set for the constraint fixes (eval_intent_llm --set recommend_price): a price limit, diet, high protein or low calorie in the message. The price, diet and ordering are also read in code and applied over the model's answer; the harness checks no shown item is above the limit. No real customer data. Non-English entries need native-speaker review before their scores are trusted. 'sort_accept' lists the sorts the model may return (null is fine: the code adds protein_desc).",
+ "entries": [
+  {
+   "id": "pr001",
+   "language": "en",
+   "text": "Something high protein under 300",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr002",
+   "language": "en",
+   "text": "under 300 veg snacks",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 300,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr003",
+   "language": "en",
+   "text": "snacks under 20",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 20,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr004",
+   "language": "en",
+   "text": "veg under 10",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 10,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr005",
+   "language": "en",
+   "text": "below Rs 15",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 15,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr006",
+   "language": "en",
+   "text": "high protein under ₹250",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr007",
+   "language": "en",
+   "text": "less than 300 rupees low calorie",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "calories_asc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr008",
+   "language": "en",
+   "text": "veg high protein budget 350",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 350,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr009",
+   "language": "en",
+   "text": "within Rs 250 egg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "egg",
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr010",
+   "language": "en",
+   "text": "non-veg under 300",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "non_veg",
+   "max_price": 300,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "pr011",
+   "language": "hinglish",
+   "text": "300 ke andar high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr012",
+   "language": "hinglish",
+   "text": "veg snacks 200 se kam",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr013",
+   "language": "hinglish",
+   "text": "kuch healthy 250 tak",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr014",
+   "language": "tenglish",
+   "text": "300 lopu high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr015",
+   "language": "tenglish",
+   "text": "250 lopala veg snacks",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr016",
+   "language": "tenglish",
+   "text": "300 varaku non veg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "non_veg",
+   "max_price": 300,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr017",
+   "language": "hi",
+   "text": "300 के अंदर हाई प्रोटीन",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr018",
+   "language": "hi",
+   "text": "200 से कम शाकाहारी",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr019",
+   "language": "hi",
+   "text": "₹250 तक स्नैक्स",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr020",
+   "language": "te",
+   "text": "300 లోపు హై ప్రోటీన్",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "pr021",
+   "language": "te",
+   "text": "200 లోపు వెజ్ స్నాక్స్",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "pr022",
+   "language": "te",
+   "text": "250 వరకు స్నాక్స్",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "constraint"
+   ],
+   "needs_native_review": true
+  }
+ ]
+}

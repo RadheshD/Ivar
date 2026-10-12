@@ -12,7 +12,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from . import aliases
+from . import aliases, constraints
 from .intents import ORDER_INTENTS, Entities, Intent
 from .quantities import extract_quantity, number_value, unit_for
 from .text import find, normalize, phrases, word_matches
@@ -142,8 +142,12 @@ def _language(tokens: list[str]) -> tuple[str | None, set[int]]:
     return None, set()
 
 
-def _order_number(tokens: list[str], vocab: Vocabulary) -> tuple[str | None, set[int]]:
+def _order_number(
+    tokens: list[str], vocab: Vocabulary, skip: frozenset[int] = frozenset()
+) -> tuple[str | None, set[int]]:
     for i, token in enumerate(tokens):
+        if i in skip or (i + 1 in skip and i + 1 < len(tokens)):
+            continue  # a price word and its number are never an order number
         if _ORDER_TOKEN_RE.match(token):
             return token.upper(), {i}
         if (
@@ -215,28 +219,50 @@ def _entity(
     return phrase, None, known
 
 
-def match(tokens: list[str], vocab: Vocabulary, *, fuzzy_hints: bool = False) -> RuleMatch:
+def match(
+    tokens: list[str],
+    vocab: Vocabulary,
+    *,
+    fuzzy_hints: bool = False,
+    no_quantity: frozenset[int] = frozenset(),
+) -> RuleMatch:
     """Classify normalized ``tokens``. Always returns entities, even with no intent.
 
     An order number is extracted only when the result is an order intent; otherwise the
     words are matched again with order-number extraction off, so a token such as
     "abc1234" stays ordinary text.
     """
-    found = _match(tokens, vocab, fuzzy_hints, find_order_number=True)
+    found = _match(tokens, vocab, fuzzy_hints, find_order_number=True, no_quantity=no_quantity)
     if found.entities.order_number and found.intent not in ORDER_INTENTS:
-        found = _match(tokens, vocab, fuzzy_hints, find_order_number=False)
+        found = _match(tokens, vocab, fuzzy_hints, find_order_number=False, no_quantity=no_quantity)
     return found
 
 
 def _match(
-    tokens: list[str], vocab: Vocabulary, fuzzy_hints: bool, *, find_order_number: bool
+    tokens: list[str],
+    vocab: Vocabulary,
+    fuzzy_hints: bool,
+    *,
+    find_order_number: bool,
+    no_quantity: frozenset[int] = frozenset(),
 ) -> RuleMatch:
     signal = {name: find(tokens, table) for name, table in _SIGNALS.items()}
     language, language_hits = _language(tokens)
-    order_number, order_hits = _order_number(tokens, vocab) if find_order_number else (None, set())
+    # A number beside a price word or currency is a price, never a quantity (or an order
+    # number): it is kept out of every entity below.
+    price_hits = constraints.price_indices(tokens)
+    if no_quantity and not (signal["add"] or signal["update_strong"] or signal["update_weak"]):
+        # a hyphenated pair of numbers ("snacks 15-20") with no price cue and no explicit
+        # add/update word is not one quantity
+        price_hits = price_hits | no_quantity
+    order_number, order_hits = (
+        _order_number(tokens, vocab, price_hits) if find_order_number else (None, set())
+    )
     choice, choice_hits = _choice(tokens)
 
-    used: set[int] = set().union(*signal.values(), language_hits, order_hits, choice_hits)
+    used: set[int] = set().union(
+        *signal.values(), language_hits, order_hits, choice_hits, price_hits
+    )
     quantity = extract_quantity(tokens, skip=used, is_entity_word=vocab.is_entity_word)
     if quantity:
         used |= quantity.indices

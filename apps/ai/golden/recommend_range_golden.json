@@ -1,0 +1,545 @@
+{
+ "_note": "Synthetic golden set for the range / spelled-price fixes (eval_intent_llm --set recommend_range): price ranges (hyphen, to, between, se...tak, nundi...varaku), min-only prices and spelled-out prices. The bounds are also read in code and applied over the model's answer; the harness checks no shown item is outside them. No real customer data. Non-English entries need native-speaker review before their scores are trusted. 'sort_accept' lists the sorts the model may return (null is fine: the code adds protein_desc).",
+ "entries": [
+  {
+   "id": "rg001",
+   "language": "en",
+   "text": "High protein 250-300",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg002",
+   "language": "en",
+   "text": "250 to 300 high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg003",
+   "language": "en",
+   "text": "between 250 and 300 veg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 300,
+   "min_price": 250,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg004",
+   "language": "en",
+   "text": "Rs 250-300 snacks",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg005",
+   "language": "en",
+   "text": "₹250 to ₹300 veg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 300,
+   "min_price": 250,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg006",
+   "language": "en",
+   "text": "veg snacks 150-250",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 250,
+   "min_price": 150,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg007",
+   "language": "en",
+   "text": "300-250 rupees high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg008",
+   "language": "en",
+   "text": "above Rs 200 high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": 200,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg009",
+   "language": "en",
+   "text": "Something under two hundred",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg010",
+   "language": "en",
+   "text": "below two fifty",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg011",
+   "language": "en",
+   "text": "under one thousand",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 1000,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "rg012",
+   "language": "en",
+   "text": "high protein under three hundred and fifty",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 350,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg013",
+   "language": "hinglish",
+   "text": "250 se 300 tak high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg014",
+   "language": "hinglish",
+   "text": "do sau ke andar veg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg015",
+   "language": "hinglish",
+   "text": "250 se 300 rupaye veg snacks",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 300,
+   "min_price": 250,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg016",
+   "language": "tenglish",
+   "text": "250 nundi 300 varaku high protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg017",
+   "language": "tenglish",
+   "text": "rendu vandalu lopu veg",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg018",
+   "language": "tenglish",
+   "text": "200 nundi 300 varaku snacks",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 200,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg019",
+   "language": "hi",
+   "text": "250 से 300 तक हाई प्रोटीन",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg020",
+   "language": "hi",
+   "text": "दो सौ के अंदर शाकाहारी",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg021",
+   "language": "hi",
+   "text": "₹200 से 300 तक स्नैक्स",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 200,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg022",
+   "language": "te",
+   "text": "250 నుండి 300 వరకు హై ప్రోటీన్",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "rg023",
+   "language": "te",
+   "text": "రెండు వందలు లోపు వెజ్ స్నాక్స్",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": "veg",
+   "max_price": 200,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg024",
+   "language": "te",
+   "text": "200 నుండి 300 వరకు స్నాక్స్",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 200,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "rg025",
+   "language": "te",
+   "text": "300 లోపు హై ప్రోటీన్",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "price",
+    "range"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  }
+ ]
+}

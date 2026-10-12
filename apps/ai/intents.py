@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal
 from enum import StrEnum
 
 LANGUAGES = ("en", "te", "hi")
@@ -43,6 +44,10 @@ class Intent(StrEnum):
 
 # Intents the LLM may return.
 CLASSIFIABLE_INTENTS = tuple(i for i in Intent if i not in (Intent.CLARIFY, Intent.PLAN_RECEIVED))
+# Extra intent NAMES the Groq classifier may return when the recommendation flow is on
+# (IVA_LLM_RECOMMEND_ENABLED). They are not members of ``Intent``: a recommendation result
+# is an ordinary read-only PRODUCT_SEARCH result that carries a ``RecommendRequest``.
+RECOMMEND_INTENT_NAMES = ("RECOMMEND", "DIET_PLAN", "PRODUCT_QUESTION")
 # Intents a button/list reply ID may carry.
 REPLY_INTENTS = tuple(i for i in CLASSIFIABLE_INTENTS if i is not Intent.FALLBACK)
 # The only intents that carry an order number.
@@ -69,6 +74,10 @@ class LLMOutcome(StrEnum):
     ERROR = "error"
     INVALID_JSON = "invalid_json"
     INVALID_SCHEMA = "invalid_schema"
+    # New classifier path (apps.ai.llm_fallback) only:
+    SKIPPED = "skipped"  # guard said no (breaker, daily cap, per-customer limit)
+    UNKNOWN = "unknown"  # the model answered "unknown"
+    AMBIGUOUS = "ambiguous"  # the model said it could mean several products
 
 
 @dataclass(frozen=True)
@@ -137,6 +146,46 @@ def keep_relevant(intent: Intent, entities: Entities, suggested: Intent | None =
 
 
 @dataclass(frozen=True)
+class LLMItem:
+    """One product the LLM found in a message. ``product_slug`` is already checked
+    against the catalog allow-list; the engine still re-checks it through the port."""
+
+    product_slug: str | None
+    mention: str | None
+    quantity: int | None
+
+
+@dataclass(frozen=True)
+class RecommendRequest:
+    """A validated recommendation-flow request. Constraints only: no products, no text for
+    the customer. ``kind`` is recommend | diet_plan | product_question | medical | clarify."""
+
+    kind: str
+    category_slug: str | None = None
+    diet_type: str | None = None
+    max_price: Decimal | None = None
+    min_price: Decimal | None = None
+    sort: str | None = None
+    unsupported: str | None = None  # a fixed label key (see apps.ai.recommend.UNSUPPORTED)
+    product_mention: str | None = None
+    asked_fact: str | None = None
+    route: str = ""  # which stage handled it: cue | classifier | cue_medical (for logs)
+    # Health wording is CONTEXT only: it adds fixed safety sentences and never changes
+    # which products are chosen or how they are sorted.
+    health_context: str = "none"
+    asks_advice: bool = False
+    meal_time: str | None = None
+    sort_from_goal: bool = False  # the sort came from the goal table, not from the model
+    # Constraint NAMES read in code from the message (price, diet, protein_sort, ...): for
+    # the log line and nothing else. Never values, never customer text.
+    cues: tuple[str, ...] = ()
+    # Which constraint fields were read in CODE, and which only the model supplied (names only,
+    # for the log line).
+    code_keys: tuple[str, ...] = ()
+    model_keys: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class IntentResult:
     intent: Intent
     confidence: float
@@ -145,6 +194,9 @@ class IntentResult:
     detected_language: str | None = None  # best guess; never overrides the saved language
     suggested_intent: Intent | None = None  # set only when intent is CLARIFY
     llm_outcome: LLMOutcome = LLMOutcome.NOT_CALLED
+    # Set only for Stage.LLM results; never carries more than slugs, mentions, quantities.
+    llm_items: tuple[LLMItem, ...] = ()
+    request: RecommendRequest | None = None  # recommendation flow only
 
     def to_dict(self) -> dict:
         data = asdict(self)

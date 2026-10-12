@@ -1,0 +1,649 @@
+{
+ "_note": "Synthetic golden set for the advice routing / gating fixes (eval_intent_llm --set recommend_advice). 'asks_advice' is what the model returns; 'reply_keys' pins whether the advice line is shown (only with an advice cue in the message); 'cue' says whether the code routes the message to the recommendation flow (recommend cue, advice cue, or goal word plus question word). No real customer data. Non-English entries need native-speaker review. 'sort_accept' lists the sorts the model may return (null is fine: the code adds protein_desc).",
+ "entries": [
+  {
+   "id": "ad001",
+   "language": "en",
+   "text": "What food do I need to take if I go to the gym regularly?",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad002",
+   "language": "en",
+   "text": "what should I eat after a workout",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad003",
+   "language": "en",
+   "text": "what do I have to eat for muscle gain",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad004",
+   "language": "en",
+   "text": "is this healthy",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "ad005",
+   "language": "en",
+   "text": "how much should I eat to bulk",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad006",
+   "language": "en",
+   "text": "Something high protein under 300",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": false,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad007",
+   "language": "en",
+   "text": "suggest something for the gym",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad008",
+   "language": "en",
+   "text": "which protein is best for bulking",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad009",
+   "language": "en",
+   "text": "what workout snacks do you have",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad010",
+   "language": "hinglish",
+   "text": "gym jaata hoon, kya khana chahiye",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad011",
+   "language": "hinglish",
+   "text": "mujhe kya khana chahiye",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "ad012",
+   "language": "hinglish",
+   "text": "gym ke liye kya lun",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad013",
+   "language": "tenglish",
+   "text": "gym ki velte emi tinali",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad014",
+   "language": "tenglish",
+   "text": "nenu emi tinali",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "ad015",
+   "language": "tenglish",
+   "text": "workout ki em tinali",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad016",
+   "language": "hi",
+   "text": "जिम जाता हूँ, कौन सा खाना लेना चाहिए",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad017",
+   "language": "hi",
+   "text": "मुझे क्या खाना चाहिए",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "ad018",
+   "language": "hi",
+   "text": "वर्कआउट के बाद क्या खाएं",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad019",
+   "language": "te",
+   "text": "జిమ్ కి వెళ్తే ఏ ఆహారం తీసుకోవాలి",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  },
+  {
+   "id": "ad020",
+   "language": "te",
+   "text": "నేను ఏమి తినాలి",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": true,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "advice.disclaimer",
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "ad021",
+   "language": "te",
+   "text": "వర్కౌట్ తర్వాత ఏమి తినాలి",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "cue": true,
+   "tags": [
+    "advice"
+   ],
+   "needs_native_review": true,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ]
+  }
+ ]
+}

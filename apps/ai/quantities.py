@@ -78,5 +78,8 @@ def extract_quantity(
 
 def parse_quantity(text: str) -> tuple[int | None, str | None]:
     """Convenience for callers that only need ``(quantity, unit)`` from free text."""
-    found = extract_quantity(tokenize(text or ""))
+    from . import constraints  # local: constraints needs this module's unit_for
+
+    tokens = tokenize(constraints.prepare(text or ""))
+    found = extract_quantity(tokens, skip=constraints.price_indices(tokens))
     return (found.value, found.unit) if found else (None, None)

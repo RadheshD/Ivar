@@ -1,0 +1,443 @@
+{
+ "_note": "Synthetic golden set for the phone-testing fixes (eval_intent_llm --set recommend_goals): gym/workout goals map to a protein sort, weight loss is a medical request. No real customer data. Non-English entries need native-speaker review before their scores are trusted. 'sort_accept' lists the sorts the model may return for the entry (null is fine: the goal table adds protein_desc in code).",
+ "entries": [
+  {
+   "id": "p001",
+   "language": "en",
+   "text": "Suggest me some good meals for the gym tonight",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "phone",
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p002",
+   "language": "en",
+   "text": "What'd you recommend me if I want to lose my body weight?",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "phone",
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p003",
+   "language": "en",
+   "text": "recommend something for my workout",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "workout"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p004",
+   "language": "en",
+   "text": "what should I eat after the gym",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p005",
+   "language": "en",
+   "text": "suggest high protein snacks for muscle building",
+   "request_type": "recommend",
+   "category_slug": "nuts-seeds-snacks",
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "muscle"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p006",
+   "language": "hi",
+   "text": "जिम के लिए कुछ अच्छा सुझाओ",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p007",
+   "language": "hi",
+   "text": "वर्कआउट के बाद क्या खाना चाहिए",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "workout"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p008",
+   "language": "te",
+   "text": "జిమ్ కోసం మంచి ఆహారం సూచించు",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p009",
+   "language": "te",
+   "text": "వర్కౌట్ తర్వాత ఏం తినాలి",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "workout"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p010",
+   "language": "hinglish",
+   "text": "gym ke liye kuch accha suggest karo",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p011",
+   "language": "hinglish",
+   "text": "workout ke baad kya khana chahiye",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "workout"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p012",
+   "language": "tenglish",
+   "text": "gym kosam emi tinali suggest cheyyi",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "gym"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p013",
+   "language": "tenglish",
+   "text": "workout tarvata emi tinali",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "workout"
+   ],
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p014",
+   "language": "en",
+   "text": "what do you suggest for weight loss",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p015",
+   "language": "en",
+   "text": "recommend a diet for fat loss",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p016",
+   "language": "en",
+   "text": "I want to get slim, any suggestions",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "p017",
+   "language": "hi",
+   "text": "वजन कम करने के लिए क्या सुझाओगे",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p018",
+   "language": "te",
+   "text": "బరువు తగ్గడానికి ఏం సూచిస్తారు",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p019",
+   "language": "hinglish",
+   "text": "weight kam karne ke liye kya suggest karoge",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "p020",
+   "language": "tenglish",
+   "text": "baruvu taggadaniki emi suggest cheyyi",
+   "request_type": "medical",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "weight_loss",
+    "medical"
+   ],
+   "needs_native_review": true
+  }
+ ]
+}

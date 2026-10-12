@@ -1,0 +1,341 @@
+{
+ "_note": "Synthetic golden set for the determinism fix (eval_intent_llm --set recommend_determinism): a price (fractional Hindi forms, ranges, spelled-out) next to the bare word 'protein'. The price and the protein sort are read in code, so the result must not depend on the model's reply; the harness checks no shown item is outside the bounds and that the shown items are sorted by protein. No real customer data. Non-English entries need native-speaker review.",
+ "entries": [
+  {
+   "id": "dt001",
+   "language": "hinglish",
+   "text": "dhai sau ke andar protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt002",
+   "language": "hinglish",
+   "text": "Dhai sau ke andar protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt003",
+   "language": "hinglish",
+   "text": "DHAI SAU KE ANDAR PROTEIN",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt004",
+   "language": "hinglish",
+   "text": "dedh sau ke andar protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 150,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt005",
+   "language": "hinglish",
+   "text": "saade teen sau se kam protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 350,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt006",
+   "language": "hinglish",
+   "text": "paune do sau ke andar protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 175,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt007",
+   "language": "en",
+   "text": "protein under 300",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "dt008",
+   "language": "en",
+   "text": "high protein 250-300",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": 250,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "dt009",
+   "language": "en",
+   "text": "under two hundred protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 200,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "dt010",
+   "language": "hi",
+   "text": "ढाई सौ के अंदर प्रोटीन",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt011",
+   "language": "hi",
+   "text": "डेढ़ सौ तक प्रोटीन",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 150,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt012",
+   "language": "hi",
+   "text": "साढ़े तीन सौ से कम प्रोटीन",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 350,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt013",
+   "language": "tenglish",
+   "text": "300 lopu protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt014",
+   "language": "tenglish",
+   "text": "rendu vandalu lopu protein",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 200,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt015",
+   "language": "te",
+   "text": "300 లోపు ప్రోటీన్",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "dt016",
+   "language": "te",
+   "text": "రెండు వందలు లోపు ప్రోటీన్",
+   "request_type": "recommend",
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 200,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "tags": [
+    "determinism",
+    "price",
+    "protein"
+   ],
+   "needs_native_review": true
+  }
+ ]
+}
