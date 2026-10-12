@@ -435,6 +435,284 @@ already only stores `text_length`, never message text, for every message).
 - In the QUANTITY state, a bare number arrives as `FALLBACK` with `quantity` set.
 - Never change the saved language from `detected_language` alone.
 
+### Native WhatsApp catalog orders (2026-10-06)
+
+A customer who orders from WhatsApp's native catalog cart sends a message of type
+`order` (`order.catalog_id`, optional `order.text`, `order.product_items[]` with
+`product_retailer_id`, `quantity`, `item_price`, `currency`). `parser.py` normalises it into
+`InboundMessage.order` (tolerant of extra/missing fields; a malformed order simply has no
+items) and it travels to the engine as `Inbound.order`. `ConversationEngine._catalog_order`
+(+ `catalog_order.validate_order`) then, through the Backend Port only: drops unknown,
+out-of-stock and invalid-quantity items (customer told which), merges duplicate lines,
+clamps a product to `IVA_CATALOG_ORDER_MAX_QTY` (default 10, never above the port's
+`MAX_LINE_QUANTITY`), and prices everything from the port. `item_price`/`currency` are never
+used as prices, only compared so the customer is told when a price differs. The order is
+the customer's authoritative selection, so the IVA cart is REPLACED (existing lines updated
+in place, new ones added, the rest removed; never emptied by a partial failure). The normal
+cart summary follows, with its Checkout button, so address / confirmation / payment are the
+existing state machine. All excluded: cart untouched, offer to browse. If `IVA_CATALOG_ID`
+is set, an order from another catalog is ignored with a safe reply. A customer who has not
+finished onboarding is asked to finish setup and resend. Redelivery is deduplicated by the
+existing WhatsApp message-id unique constraint plus the processing claim. Logs carry counts
+and product IDs only. No Backend Port change: a catalog item's `product_retailer_id` is the
+port product ID; the default in-stock variant is used, as for product cards.
+
+`manage.py replay_order slug:qty[:price] ... --to <wa_id>` (dev only; refuses unless
+`IVA_DEV_RESET_ALLOWED`) builds an order payload, signs it with `WHATSAPP_APP_SECRET` and
+posts it to the real webhook view, so signature check, dedupe and inline processing all run.
+
+**Blocked:** linking the live catalog to the WhatsApp number needs the catalog-enabled test
+number, which does not exist yet. Everything above is verified only against simulated
+payloads. Meta's reference: https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages/order/
+
+### LLM fallback (Groq) (2026-10-06)
+
+Off by default (`IVA_LLM_ENABLED=false`). Pipeline: reply ID -> rules -> fuzzy -> **LLM
+fallback** -> engine. The rules and fuzzy stages are unchanged and always run first; the LLM
+is asked only when they are not confident AND the engine allows it for this message
+(`ConversationEngine._llm_context`): free text, onboarded customer, a state in
+`_LLM_STATES` (new / main menu / browsing / cart), no pending question, a non-empty catalog.
+Never for button/list taps, language or diet selection, address entry, order confirmation,
+payment, catalog orders or "IVA PLAN v1" messages.
+
+`apps/ai/classifier.py` defines the provider-neutral `IntentClassifier` interface plus
+redaction (phones, emails, 6+ digit runs masked), the prompt (message is DATA, never
+instructions; only the EXISTING intent enum, `unknown`, and a compact `slug|name|category`
+allow-list from the Backend Port are sent) and strict validation. `apps/ai/groq.py` is the
+first adapter (project HTTP helper, no SDK). `apps/ai/llm_fallback.py` runs guard -> call ->
+validate and returns an outcome category; `apps/ai/llm_guard.py` holds the circuit breaker,
+per-customer limit and Redis-backed daily cap (counters fail closed). Validation after the
+model: unknown intent -> `unknown`; slugs not in the allow-list dropped; quantity outside
+`1..MAX_LINE_QUANTITY` -> null; schema violations reject the whole reply. Low confidence
+(< `IVA_LLM_MIN_CONFIDENCE`) -> clarifying question; `ambiguous` with a product mention ->
+read-only search results; `unknown`/failure -> the existing no-match reply (silent).
+
+Cart safety: an LLM-derived add/remove/update never changes the cart directly. The engine
+re-checks each slug through the port, stores a pending `llm_confirm` in the session, and asks
+"Add 2 x Classic Oats Bowl?" with Yes / No (`ACT:llmyes` / `ACT:llmno`); only Yes applies it,
+and any other message cancels it. Read-only intents use the normal handlers.
+
+Privacy: only the redacted message, the catalog allow-list and the intent list leave the
+system. Logs carry outcome, intent, confidence, latency, model, token counts and product
+slugs only; never customer text, never the key. Settings: `IVA_LLM_ENABLED`, `GROQ_API_KEY`
+(environment only), `IVA_LLM_MODEL` (default `openai/gpt-oss-20b`), `IVA_LLM_TIMEOUT_S` (4),
+`IVA_LLM_MIN_CONFIDENCE` (0.7), `IVA_LLM_DAILY_CAP` (500), `IVA_LLM_CUSTOMER_PER_MINUTE` (3),
+`IVA_LLM_BREAKER_FAILURES` (5), `IVA_LLM_BREAKER_COOLDOWN_S` (120). The circuit breaker is
+per process. The older `LLM_PROVIDER` / `apps.ai.llm.LLMClient` path is untouched.
+
+**Eval harness (2026-10-06):** `eval_intent_llm` works on both golden sets (`--set intents|recommend`). Besides accuracy it records, per entry, the model's raw answer, what our validation kept/dropped, and the FINAL ENGINE ACTION class (NO_ACTION, READ_ONLY_REPLY, CLARIFY, CART_CONFIRMATION_PROMPT, PLANNER_HANDOFF) obtained from the real pipeline/engine code against the Fake Backend (`apps/conversations/intent_eval.py`). A SAFETY section lists every entry that offers an unallowed cart change, lets the recommend flow touch the cart, or shows a missing/out-of-stock product; any finding makes the command exit non-zero. Console output is cp1252-safe; full UTF-8 results go to `--output` (default `exports/eval_intent_results.json`). `--ids`, `--failures-only --from-results FILE` and `--dry-run` (canned replies, no network) are available.
+
+Evaluation: `manage.py eval_intent_llm [--limit N] [--sleep S]` (dev only, live Groq calls)
+scores `apps/ai/golden/intent_golden.json` (82 synthetic messages) overall and per language.
+All Hindi/Telugu/Hinglish/Tenglish/mixed entries are flagged `needs_native_review`; their
+quality is **unverified** until a native speaker has reviewed both the set and real results.
+
+### Grounded product recommendations (2026-10-06)
+
+Off by default (`IVA_LLM_RECOMMEND_ENABLED=false`, and it needs the LLM fallback above).
+A customer asks for suggestions ("something high-protein under 300"); the LLM **interprets**,
+**code selects**, **templates write**. The model only fills a closed schema
+(`apps/ai/recommend.py`): `request_type` (recommend / diet_plan / product_question /
+medical / other), `category_slug`, `diet_type`, `max_price`, `min_price`, `sort`
+(protein_desc / calories_asc / price_asc / price_desc), `product_mention`, `asked_fact`,
+`unsupported_constraint`, `language`, `confidence`, `ambiguous`. It receives only the redacted
+message, the category allow-list (slug|name) and the diet/sort value lists: no product data.
+Validation drops anything outside the allow-lists, non-positive prices and contradictory
+ranges; schema errors reject the whole reply.
+
+Routing (inside the existing LLM stage, after rules/fuzzy): a cue from `apps/ai/recommend_cues.py`
+(data only; every non-English cue is flagged for native review; matching is NFKC + lower-case,
+whole-word for Latin script, substring for Devanagari/Telugu) goes straight to the
+extraction call. Without a cue, the Part 1 classifier runs and, if it names RECOMMEND /
+DIET_PLAN / PRODUCT_QUESTION (offered only while the flag is on), the extraction is the
+second call. Groq calls per flow: cue = 1 (2 if the extraction says `other` and the
+classifier then runs); no cue = 1 for an ordinary classified message, 2 for a recommendation
+the classifier recognises. Each call goes through the same circuit breaker, per-customer limit
+and daily cap. A failed/skipped extraction shows the normal category menu.
+
+Selection (`apps/conversations/recommend_select.py`, Backend Port only): in-stock products;
+hard filters for diet type (exact), price range and category; the saved food preference when
+no diet was asked for (hidden matches are counted and disclosed); stable sort by the
+requested real number; top `IVA_LLM_RECOMMEND_MAX_PICKS`. "High protein" and "low calorie"
+are never defined: the sort is applied and the real figures are shown. A sort no product
+record supports, or a dietary label the port has no field for (gluten-free, sugar-free,
+vegan, allergen-free) is disclosed ("I can't filter by ... yet"), never applied silently.
+Replies (`recommend_flow.py`) are templates in en/te/hi: intro, a facts line built only from
+fields that exist ("name - price - g protein - kcal - diet", missing parts omitted), the usual
+Add to cart buttons, and the existing "nutrition not verified" note when the backend says so.
+diet_plan generates nothing and hands off to the planner (`IVA_PLANNER_URL`; no link if unset);
+a single-meal constraint in the same message also gets recommendations. product_question
+answers verbatim from the product record or says "I don't have that information for this
+product." (allergen, ingredient and suitability questions always add "Please check with the
+Ivar team": the port has no such fields). medical gives no advice, no picks, and the menu.
+Recommendations are read-only: no confirmation step, the cart is never touched.
+
+Phone-testing fixes (2026-10-06): with `IVA_LLM_RECOMMEND_ENABLED` on, a recommendation cue (or a health/weight-loss phrase from `MEDICAL_CUES`) takes priority over a rules/fuzzy *product-search guess* (PRODUCT_SEARCH, or a fuzzy-corrected ADD_TO_CART: the fuzzy stage once turned "weight" into "eight" and a quantity of 8). A cue loses if the message names a real product or category ("suggest ragi mix" still finds ragi mix); every other rules result keeps its priority; if the flow has no answer the rules' guess is kept. Weight-loss and similar phrases get the fixed medical reply with zero model calls. With the LLM layer on, the product-search no-match reply is neutral and never repeats the customer's words (`search.none_neutral`); the quoted `search.none` remains for the non-LLM path. `GOAL_SORT` (data) maps goal words (gym, workout, muscle, protein...) to `protein_desc` in code after validation, only if the model gave no sort; products without a protein figure come last and the reply says "Sorted by protein, highest first." (ordering only). One INFO line per recommendation message: stage (cue / classifier / cue_medical), kind, constraint names, sort, outcome and pick count; never customer text.
+
+Health-aware free-form food questions (2026-10-07). Principle: understand the whole sentence,
+answer only the part the menu data supports, decline the rest with fixed templates; never invent a
+fact, benefit or need. The extraction schema gained `health_context` (none | symptom | condition |
+weight_loss | pregnancy_or_child | allergy | emergency), `asks_advice`, `meal_time` and a larger
+`unsupported_constraint` enum (ingredient, allergen, gluten_free, sugar_free, vegan, popularity,
+meal_time, other_label). Health wording is CONTEXT ONLY: it adds fixed safety sentences and never
+changes which products are chosen or how they are sorted (a model-chosen sort under health wording is
+dropped unless the message itself asks for that ordering; see `EXPLICIT_SORT_WORDS`). Composition
+(`recommend_flow._reco_compose`): [safety block] then [picks block]. symptom/condition/pregnancy_or_child
+-> "I can't give medical or dietary advice." + "If you feel unwell, please see a doctor."; weight_loss ->
+the first sentence only; allergy -> the allergen sentence and the category browse, never picks; none ->
+normal flow, with "I can't say what you personally need, but here is what's on our menu." before the picks
+when `asks_advice`. Picks after a safety block need explicit food constraints (category, diet, price, an
+explicit sort, a mapped meal time); otherwise the category browse. Meal time: `apps/ai/meal_time_map.py`
+is EMPTY on purpose (the port has no meal-time field), so a meal-time request is disclosed and the other
+constraints are applied; a filled list is a plain category filter. Popularity ("best seller") is declined
+with a fixed sentence. Health wording also routes a message to the extraction (`HEALTH_CUES`), so the
+safety sentences are always composed. The older fixed medical reply (`recommend.medical`, used for the
+deterministic weight-loss/condition phrases and request_type=medical) is kept as is: existing tests pin it.
+
+Emergency check (`apps/ai/safety_keywords.py`, `ConversationEngine._emergency_check`): keyword matching in
+code on every free-text message (never on button replies), before onboarding, the rules layer and any
+model call. `IVA_SAFETY_KEYWORDS_ENABLED` (default ON) is independent of every `IVA_LLM_*` flag. The reply is
+ONLY "This sounds serious. Please contact a doctor or your local emergency services right now." plus the
+owner's `IVA_EMERGENCY_CONTACT_TEXT` if set, and a Menu button: no products, no cart change, no model call.
+The model's `health_context=emergency` gets the same reply. Keyword coverage is a starter set and is
+INCOMPLETE (every non-English list needs native-speaker review).
+
+Single-turn limit: no conversation history is sent to the model. A follow-up ("cheaper ones", "the second
+one") is a fresh message; with no usable constraints it gets the neutral "couldn't find that" reply and the
+category browse (`FOLLOWUP_CUES`). A bare request with no constraints that is not a recognised follow-up
+still shows the first picks in catalog order (existing behaviour, pinned by tests).
+
+Fuzzy guard: a cart change guessed by the fuzzy (typo) stage now asks Yes/No first (`IVA_FUZZY_CART_CONFIRM`,
+default on), reusing the LLM confirmation machinery; rules-stage adds are unchanged. Never correcting a
+word INTO a number word is `IVA_FUZZY_NUMBER_GUARD`, now ON by default (changed 2026-10-07 with the owner's
+approval; `config/settings/test.py` also sets it on). Reason: the fuzzy stage once corrected "weight" into the
+number word "eight" and produced a quantity of 8. Exactly one existing test was changed with the owner's
+approval: `test_the_old_quoted_reply_is_unchanged_without_the_llm_layer` (`test_engine_recommend_priority.py`)
+used to pin the buggy corrected text ("recommend if lose"); it now asserts "weight" is kept and never becomes
+a quantity. No other test was edited. The Yes/No question for fuzzy cart changes still applies either way.
+
+Product-data dependency: quality is bounded by what the backend returns. The Fake Backend has
+name, category, price, diet_type (veg/egg/non_veg), protein_g (null on 8 of 55), calories,
+tags (light, high_protein), pack_size (null on 47), image, nutrition_verified (false for all)
+and no descriptions. A real adapter that supplies descriptions, allergens or ingredients
+would let more questions be answered, but that needs Backend Port fields first.
+`manage.py eval_intent_llm --set recommend` (dev only, live Groq calls) scores
+`apps/ai/golden/recommend_golden.json` (50 synthetic entries); non-English entries are
+flagged `needs_native_review`, so Telugu/Hindi quality stays unverified until reviewed.
+
+Stated constraints and prices (2026-10-07). Two rules, both in code. (1) **A number beside a price
+word or a currency word is never a quantity**, on any path. `apps/ai/constraints.py` (data in
+`apps/ai/constraint_cues.py`, non-English entries marked for native review) finds the number in
+"under 300", "below Rs 15", "15 rupees", "₹300", "300 ke andar", "300 లోపు", "300 से कम" and the like,
+and the rules layer keeps those tokens out of quantity extraction, order-number detection and the
+search words (`rules._match`), the fuzzy stage leaves comparator/currency/diet words as typed, a
+model-supplied quantity that is really a price in the message is dropped
+(`constraints.drop_price_quantity`), and `parse_quantity` skips them. Before this fix "something high
+protein under 300" became ADD_TO_CART with quantity 300 (the 300 was stored in the pending
+"choose" state and read back as the quantity when a list row was tapped, failing only on the
+Port's per-line cap of 20). A pending choice with no real quantity now follows the existing rule:
+ask "how many?". A MIN comparator ("above", "at least") counts as a price only next to a currency
+word, because "at least 3 packets" is a quantity; a number followed by a pack-size unit ("500 g") or
+a unit word ("2 packets") is never a price. (2) **Constraints are never silently dropped by a name
+search.** With `IVA_LLM_ENABLED` and `IVA_LLM_RECOMMEND_ENABLED` on (and the LLM allowed for the
+message), a rules/fuzzy PRODUCT_SEARCH, an ADD_TO_CART with a search term, or a category listing that
+carries a price limit, a diet word (veg / non-veg / egg) or a high-protein / low-calorie word takes the
+recommendation flow instead (`IntentPipeline._constraint_result`): one extraction call, then the price,
+diet and ordering read in code are applied over the model's answer (`constraints.overlay`; the
+code-read value wins, a model sort is kept). If the extraction is unusable (down, skipped, low
+confidence) the request is built from the code-read constraints alone, with a category taken from the
+message when a category name's words are all present, so a "Which one?" list that could violate the
+constraint is never shown. The exception: the search words resolve exactly to a real product name once
+the comparator words are set aside ("protein smoothie under 300" still finds that product; the name
+comes from the catalog hints the engine already gives the pipeline). An exact CATEGORY name does not
+bypass the flow: a category plus a constraint is a filtered recommendation, never an unfiltered
+browse. Medical phrases still win. The price filter is strict (`select_products`: nothing above
+`max_price` ever appears; the limit is inclusive) and the intro states it
+("Showing items up to ₹{max}.", `recommend.max_price`, en/te/hi, te/hi need native review); no
+qualifying item gives the existing `recommend.none` reply. With the flags off nothing is routed (only
+the quantity fix applies). Not handled: spelled-out numbers ("three hundred"), ranges other than
+"between X and Y" (English only), decimals ("299.50": the tokenizer splits them). Logging: the
+recommendation log line gains `cues=[...]` (constraint NAMES only: price, diet, protein_sort,
+calorie_sort) and `stage=constraint`; no values or text. Eval: `manage.py eval_intent_llm --set
+recommend_price [--dry-run]` scores `apps/ai/golden/recommend_price_golden.json` (22 synthetic entries, all
+languages) through `IntentPipeline.constraint_answer` and fails any entry that shows an item above its limit.
+
+Price ranges, spelled-out prices and the advice line (2026-10-07). Built on the constraint rules
+above, same flags. (1) **Ranges**: `constraints.parse` reads min and max from "250-300", "250 to
+300", "between 250 and 300", "Rs 250-300", "₹250 to ₹300", "250 se 300 [tak]", "250 nundi 300
+varaku" (en/hinglish/tenglish/hi/te, number first or currency first, in either order: reversed
+bounds are swapped, never dropped). A hyphen is normalized away by the tokenizer, so
+`constraints.prepare_ranges` rewrites a hyphen between two numbers to the sentinel word `rngto`
+and the pipeline keeps that tokenization only when a range was actually read; a bare "N to M",
+"N se M" or hyphen pair is a range only when the message also holds a price or constraint cue
+(currency word, comparator, diet / protein / calorie word), otherwise it is tokenized as before and
+a hyphenated pair with no explicit add/update word is kept out of quantity extraction
+(`rules.match(no_quantity=...)`: "snacks 15-20" no longer becomes an add; "add 2-3 quinoa" is
+unchanged). `select_products` already filters both bounds strictly; the intro states them
+(`recommend.price_range` "Showing items from ₹{min} to ₹{max}.", `recommend.min_price`,
+`recommend.max_price`; te/hi need native review). (2) **Spelled-out prices**: English number words
+(one..ninety, hundred, thousand, "two fifty", "three hundred and fifty", "a hundred") and Hindi /
+Telugu words (Roman and native script, data in `apps/ai/constraint_cues.py`, all marked for native
+review) are read ONLY beside a comparator, range word or currency ("under two hundred" = max 200); the
+words are then price tokens, never a quantity, and "add two quinoa" is still a quantity. (3)
+**Unreadable prices**: with the flags on, a currency word or an unambiguous comparator (under, below,
+less than, within, up to, at most, cheaper than) with NO readable number anywhere in the message gets
+`price.unreadable` ("I couldn't read the price you mentioned. Please write it like 'under 300'.") with
+a Menu button, no model call, no picks and never the "couldn't find that" reply
+(`IntentResult.request.kind == "price_unreadable"`). (4) **Advice line**: on the constraint route
+(`IntentPipeline.constraint_answer`) `advice.disclaimer` needs the model's `asks_advice` AND a code-side cue
+from `apps/ai/advice_cues.py` (`recommend.advice_cue_matches`; owner-editable, non-English entries
+need native review; plain "suggest"/"recommend" are not cues). The cue and classifier routes still
+trust `asks_advice` alone, because `test_engine_health.py::test_asks_advice_adds_the_disclaimer_before_the_picks`
+(text "suggest zork florp", no advice cue) pins that behaviour; wiring the gate there is one line in
+`_from_extraction` once that test is updated. Logging: the cue names are `price_range`, `price_min`
+and (upper limit only) `price`, the name release 1 logged and existing tests pin; never values.
+Eval: `manage.py eval_intent_llm --set recommend_range [--dry-run]` scores
+`apps/ai/golden/recommend_range_golden.json` (25 entries, all languages) and fails any entry that shows an
+item outside its bounds. Not handled: bare "250 to 300" / "250 se 300" with no cue, other-language
+"between" wording, spelled-out decimals and "dhai sau"/"dedh sau"-style fractions, ranges without a
+joiner ("250 300").
+
+Advice questions, the advice-line gate and Hindi fractions (2026-10-07). With the two LLM flags on,
+`recommend.routing_cue_matches` is the recommendation cue: a configured cue (`recommend_cues.py`), an
+advice cue ("what food do I need", "what should I eat", "is it good for me"; `apps/ai/advice_cues.py`,
+owner-editable), or a goal word from `GOAL_SORT` (gym, workout, muscle, protein ...) together with a
+question word (`QUESTION_WORDS`: what, which, should, need, kya, emi, ela and equivalents). It has the
+same priority as before over a weak rules/fuzzy PRODUCT_SEARCH guess and loses to a message that
+names a real product or category ("what protein bowls do you have" still opens the Protein Bowls
+category, "suggest ragi mix" still finds it); before this change "What food do I need to take if I go
+to the gym regularly?" was a rules PRODUCT_SEARCH ("food take if gym regularly") with no cue, so the
+engine ran a name search and replied `search.none_neutral`. Health words were already cues
+(HEALTH_CUES) so "I'm having a little headache, what do I have for dinner?" is unchanged: safety.medical
++ safety.see_doctor + meal_time.unsupported + the category browse, no picks (pinned by a new test).
+`advice.disclaimer` is now gated on EVERY route inside `IntentPipeline._from_extraction`: it needs the
+model's `asks_advice` AND an advice cue in the message; the model's flag alone shows nothing.
+Hindi fractional prices ("dhai sau" 250, "dedh sau" 150, "saade teen sau" 350, "saade paanch sau" 550,
+"paune do sau" 175, Roman and Devanagari; `constraint_cues.SPELLED_FRACTIONS`, native review needed)
+are read only beside a price word and never become a quantity ("dhai sau ke andar protein" is max 250
++ protein sort; before, "sau" alone read as 100). Flags off: nothing is routed. Eval:
+`eval_intent_llm --set recommend_advice [--dry-run]` scores `recommend_advice_golden.json` (21 entries,
+all languages: model flag, expected reply keys, expected routing).
+
+Deterministic constraints (2026-10-07). The price amount, the comparator and the protein / calorie
+sort are read in CODE (`constraints.parse`, NFKC + lower-case + whitespace-collapsed text) and never
+depend on the model. Before: a model reply of `request_type=product_question` (or medical) with no
+constraints was returned as-is by `constraint_answer` and became the generic `recommend.clarify`
+reply; the model's own sort beat the code's; the bare word "protein" was not a sort cue; and in any
+state where the LLM may not be called (a pending choice) the constraint route did not run at all, so
+the message fell to a plain name search. Now, with the two flags on: (1) the constraint route runs in
+every state, with no model call when none is allowed; (2) whatever request_type the model returned
+(except an emergency), a code-read price, diet or sort turns the message into a recommendation
+carrying the code-read values (`constraints.overlay`: code wins for max/min price, diet and sort; the
+model may only ADD fields the code did not find, e.g. a category, which then narrows the picks
+as usual); an unusable reply (invalid JSON, timeout, "other", low confidence) gives the same
+code-only request; (3) zero picks is the existing `recommend.none` (never `recommend.clarify`);
+(4) bare "protein" (`constraint_cues.BARE_PROTEIN`, native review needed) counts as the protein sort
+only beside a price constraint. The recommend log line now ends `code=[...] model=[...]` (field
+names: what code read vs what only the model supplied). A diet_plan reply keeps its planner hand-off
+(with the code-read bounds applied). Eval: `eval_intent_llm --set recommend_determinism [--dry-run]`
+(16 entries; also checks the shown items are sorted by protein).
+
 ## 8. Checkout and payment flow
 
 ```text
