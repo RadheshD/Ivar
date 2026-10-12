@@ -12,6 +12,7 @@ import logging
 
 from django.conf import settings
 
+from apps.ai import llm_state
 from apps.ai.intents import Intent, RecommendRequest
 from apps.ai.recommend import (
     constraint_keys,
@@ -48,6 +49,7 @@ class RecommendFlow:
 
     def _recommendation(self, c, req: RecommendRequest) -> list[Outbound]:
         kind = req.kind
+        llm_state.stat(f"reco.{kind}")
         if req.health_context == "emergency":
             replies = self._emergency_reply(c)
         elif kind == "clarify":

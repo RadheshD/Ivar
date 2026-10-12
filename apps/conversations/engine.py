@@ -26,6 +26,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.utils import timezone
 
+from apps.ai import llm_state
 from apps.ai.classifier import CatalogEntry
 from apps.ai.intents import Entities, Intent, IntentResult, LLMItem, Stage, build_reply_id
 from apps.ai.llm_fallback import LLMContext
@@ -435,6 +436,8 @@ class ConversationEngine(RecommendFlow):
         s = c.session
         e = r.entities
         pending, s.pending = s.pending, None
+        if pending and pending.get("kind") == "llm_confirm":
+            llm_state.stat("cart_confirm.declined")  # the customer moved on instead of answering
         intent = r.intent
         if r.request is not None:  # grounded recommendation flow (read-only)
             return self._recommendation(c, r.request)
@@ -701,6 +704,7 @@ class ConversationEngine(RecommendFlow):
             return self._llm_apply(c)
         elif name == "llmno":
             s.pending = None
+            llm_state.stat("cart_confirm.declined")
             buttons = (self._button(c, Intent.VIEW_CART.value, "btn.cart"), self._menu_button(c))
             return [OutButtons(t(c.lang, "llm.cancelled"), buttons, "llm.cancelled")]
         return [self._fallback(c)]
@@ -1433,6 +1437,7 @@ class ConversationEngine(RecommendFlow):
         )
         picked = [{**ln, "qty": min(ln["qty"], PORT_MAX_QUANTITY)} for ln in lines.values()]
         c.session.pending = {"kind": "llm_confirm", "action": action, "lines": picked}
+        llm_state.stat("cart_confirm.offered")
         if action == "update":
             shown = ", ".join(f"{ln['name']} → {ln['qty']}" for ln in picked)
         elif action == "remove":
@@ -1481,6 +1486,7 @@ class ConversationEngine(RecommendFlow):
         pending, c.session.pending = c.session.pending, None
         if not pending or pending.get("kind") != "llm_confirm":
             return self._main_menu(c)  # stale tap: nothing is waiting
+        llm_state.stat("cart_confirm.accepted")
         action, cid, skipped = pending["action"], c.customer.id, 0
         cart = None
         for line in pending["lines"]:
