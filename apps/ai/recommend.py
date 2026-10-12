@@ -17,7 +17,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 
 from .advice_cues import ADVICE_CUES, QUESTION_WORDS
-from .classifier import ClassifierInvalid, ClassifierReply
+from .classifier import ClassifierInvalid, ClassifierReply, safe_echo
 from .intents import RecommendRequest
 from .meal_time_map import MEAL_TIME_CATEGORIES
 from .recommend_cues import (
@@ -355,6 +355,7 @@ def parse_extraction(raw: object, *, category_slugs: frozenset[str]) -> Extracti
         mention = " ".join(mention.split())[:MAX_MENTION_CHARS]
         if not mention or any(not ch.isprintable() for ch in mention):
             mention = None
+        mention = safe_echo(mention)  # may be shown back inside a template: sanitise it
     health = data.get("health_context", "none")
     if not isinstance(health, str):
         raise _invalid()

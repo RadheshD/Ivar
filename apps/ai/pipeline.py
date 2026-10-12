@@ -338,7 +338,8 @@ class IntentPipeline:
             base = decided
         else:  # no usable extraction (or "clarify"/"followup"): code-read constraints only
             blank = RecommendRequest(kind="recommend", route="constraint")
-            request = constraints.overlay(blank, cons)
+            # The goal-word sort is read in code too: it must not depend on the model being up.
+            request = apply_goal_sort(constraints.overlay(blank, cons), text)
             base = IntentResult(
                 Intent.PRODUCT_SEARCH, 1.0, Stage.RULES, Entities(), language,
                 llm_outcome=er.outcome,
@@ -514,6 +515,13 @@ def fallback_from_settings() -> LLMFallback | None:
     if not api_key:
         logger.warning("IVA_LLM_ENABLED is on but GROQ_API_KEY is not set; LLM fallback is off")
         return None
+    if not getattr(settings, "DEBUG", False) and not int(
+        getattr(settings, "IVA_LLM_DAILY_TOKEN_CAP", 0) or 0
+    ):
+        logger.warning(
+            "LLM is enabled with an API key but IVA_LLM_DAILY_TOKEN_CAP is not set; "
+            "the built-in default budget applies. Set an explicit daily cap."
+        )
     model = getattr(settings, "IVA_LLM_MODEL", "") or DEFAULT_MODEL
     recommend = bool(getattr(settings, "IVA_LLM_RECOMMEND_ENABLED", False))
     classifier = GroqClassifier(

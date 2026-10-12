@@ -169,6 +169,22 @@ IVA_LLM_DAILY_CAP = env.int("IVA_LLM_DAILY_CAP", default=500)
 IVA_LLM_CUSTOMER_PER_MINUTE = env.int("IVA_LLM_CUSTOMER_PER_MINUTE", default=3)
 IVA_LLM_BREAKER_FAILURES = env.int("IVA_LLM_BREAKER_FAILURES", default=5)
 IVA_LLM_BREAKER_COOLDOWN_S = env.int("IVA_LLM_BREAKER_COOLDOWN_S", default=120)
+# Abuse and cost guards (apps/ai/llm_guard.py). They limit MODEL CALLS only; the code-only
+# paths never depend on them. A token cap of 0 means "use the built-in default", never
+# "unlimited". Defaults sit below the provider's free-tier limits.
+IVA_LLM_MAX_INPUT_CHARS = env.int("IVA_LLM_MAX_INPUT_CHARS", default=500)
+IVA_LLM_DAILY_TOKEN_CAP = env.int("IVA_LLM_DAILY_TOKEN_CAP", default=0)
+IVA_LLM_MINUTE_TOKEN_CAP = env.int("IVA_LLM_MINUTE_TOKEN_CAP", default=0)
+IVA_LLM_MINUTE_CAP = env.int("IVA_LLM_MINUTE_CAP", default=20)
+IVA_LLM_CUSTOMER_DAILY_CAP = env.int("IVA_LLM_CUSTOMER_DAILY_CAP", default=30)
+IVA_LLM_CUSTOMER_BUDGET_SHARE_PCT = env.float("IVA_LLM_CUSTOMER_BUDGET_SHARE_PCT", default=5.0)
+# Auto-trip: when the failure or validation-rejection rate over a rolling window passes the
+# threshold, the runtime kill switch turns on for the cool-off.
+IVA_LLM_TRIP_WINDOW_MIN = env.int("IVA_LLM_TRIP_WINDOW_MIN", default=5)
+IVA_LLM_TRIP_MIN_CALLS = env.int("IVA_LLM_TRIP_MIN_CALLS", default=10)
+IVA_LLM_TRIP_FAILURE_RATE = env.float("IVA_LLM_TRIP_FAILURE_RATE", default=0.5)
+IVA_LLM_TRIP_REJECT_RATE = env.float("IVA_LLM_TRIP_REJECT_RATE", default=0.5)
+IVA_LLM_TRIP_COOLOFF_S = env.int("IVA_LLM_TRIP_COOLOFF_S", default=900)
 # Grounded product recommendations (apps/ai/recommend.py). OFF by default; needs the LLM
 # fallback above. The model only extracts constraints; code picks products from the Backend
 # Port and templates write the reply.

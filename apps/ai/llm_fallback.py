@@ -14,18 +14,25 @@ from dataclasses import dataclass
 
 from django.conf import settings
 
+from . import llm_state
 from .classifier import (
+    HARD_INPUT_CEILING,
+    SYSTEM_PROMPT,
     CatalogEntry,
     Classification,
     ClassifierError,
     ClassifierInvalid,
+    ClassifierRateLimited,
     ClassifierTimeout,
     IntentClassifier,
+    has_request_left,
     parse_classification,
+    prepare_input,
     redact,
 )
 from .intents import RECOMMEND_INTENT_NAMES, LLMOutcome
-from .llm_guard import LLMGuard
+from .llm_guard import LLMGuard, estimate_tokens
+from .recommend import SYSTEM_PROMPT as RECOMMEND_PROMPT
 from .recommend import Extraction, constraint_keys, parse_extraction
 
 logger = logging.getLogger(__name__)
@@ -35,6 +42,10 @@ DEFAULT_MIN_CONFIDENCE = 0.7
 # Backstop so an adapter that ignores its own timeouts cannot block the caller.
 _EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="iva-llm-cls")
 _BACKSTOP_SECONDS = 1.0
+DEFAULT_MAX_INPUT_CHARS = 500
+_SCHEMA_CHARS = 1500  # the JSON schema travels in every request
+_NOT_PROCESSED = ("rate_limited", "connection")  # the provider did no work: no tokens spent
+_FAILURE_KINDS = ("timeout", "rate_limited", "http_error", "connection", "bad_response")
 
 
 @dataclass(frozen=True)
@@ -92,34 +103,97 @@ class LLMFallback:
             else _float_setting("IVA_LLM_TIMEOUT_S", DEFAULT_TIMEOUT_S)
         )
 
-    def run(self, text: str, ctx: LLMContext) -> FallbackResult:
-        message = redact(text)
-        if not message:
-            return FallbackResult(LLMOutcome.SKIPPED)
-        ok, reason = self.guard.allow(ctx.customer_key)
-        if not ok:
-            logger.info("llm: skipped reason=%s", reason)
-            return FallbackResult(LLMOutcome.SKIPPED)
+    # ------------------------------------------------------------------ shared steps
 
-        started = time.monotonic()
-        reply = None
-        outcome = LLMOutcome.ERROR
-        error_kind = ""
+    @staticmethod
+    def _prepare(text: str) -> str | None:
+        """The message as it may leave the process, or ``None`` (skip the model): normalised,
+        within the length limit (never truncated), redacted, with something left to read."""
         try:
-            future = _EXECUTOR.submit(
-                self.classifier.classify, message, catalog=ctx.catalog, timeout=self.timeout
-            )
+            limit = int(getattr(settings, "IVA_LLM_MAX_INPUT_CHARS", DEFAULT_MAX_INPUT_CHARS))
+        except (TypeError, ValueError):
+            limit = DEFAULT_MAX_INPUT_CHARS
+        prepared = prepare_input(text, limit if limit > 0 else DEFAULT_MAX_INPUT_CHARS)
+        if prepared is None:
+            llm_state.stat("skipped.input_limit")
+            return None
+        message = redact(prepared, limit=HARD_INPUT_CEILING)
+        if not has_request_left(message):
+            llm_state.stat("skipped.redaction_empty")
+            return None
+        return message
+
+    def _admit(self, ctx: LLMContext, est_chars: int, what: str):
+        permit = self.guard.acquire(ctx.customer_key, estimate_tokens(est_chars))
+        if not permit.ok:
+            llm_state.stat(f"skipped.{permit.reason}")
+            logger.info("llm: %sskipped reason=%s", what, permit.reason)
+            return None
+        return permit
+
+    def _invoke(self, fn, *args, **kwargs):
+        """Run the provider call under the backstop timeout. Returns ``(reply, outcome, kind,
+        rate_limited_exc)``; never raises."""
+        try:
+            future = _EXECUTOR.submit(fn, *args, **kwargs)
             try:
-                reply = future.result(timeout=self.timeout + _BACKSTOP_SECONDS)
+                return future.result(timeout=self.timeout + _BACKSTOP_SECONDS), None, "", None
             except TimeoutError:
                 future.cancel()
                 raise ClassifierTimeout() from None
         except ClassifierTimeout:
-            outcome, error_kind = LLMOutcome.TIMEOUT, "timeout"
+            return None, LLMOutcome.TIMEOUT, "timeout", None
+        except ClassifierRateLimited as exc:
+            return None, LLMOutcome.ERROR, exc.kind, exc
         except ClassifierError as exc:
-            outcome, error_kind = LLMOutcome.ERROR, exc.kind
+            return None, LLMOutcome.ERROR, exc.kind, None
         except Exception as exc:
-            outcome, error_kind = LLMOutcome.ERROR, type(exc).__name__
+            return None, LLMOutcome.ERROR, type(exc).__name__, None
+
+    def _settle(self, permit, reply, error_kind, limited, parsed_ok, rejected_kind, bad_slugs):
+        """Account for one finished call: tokens, breaker, window, metrics, provider pause."""
+        if limited is not None:
+            self.guard.note_rate_limited(limited.retry_after)
+        elif reply is not None and reply.pause_s:
+            self.guard.note_rate_limited(reply.pause_s)
+        if (
+            reply is not None
+            and reply.prompt_tokens is not None
+            and reply.completion_tokens is not None
+        ):
+            used = reply.prompt_tokens + reply.completion_tokens
+        elif error_kind in _NOT_PROCESSED:
+            used = 0
+        else:
+            used = None
+        failed = reply is None
+        rejected = rejected_kind is not None or bad_slugs > 0
+        if failed:
+            llm_state.stat(f"failed.{error_kind if error_kind in _FAILURE_KINDS else 'error'}")
+        if rejected_kind is not None:
+            llm_state.stat(f"rejected.{rejected_kind}")
+        if bad_slugs:
+            llm_state.stat("rejected.hallucinated_slug")
+        self.guard.finish(
+            permit, success=parsed_ok, tokens_used=used, failed=failed, rejected=rejected
+        )
+
+    def run(self, text: str, ctx: LLMContext) -> FallbackResult:
+        message = self._prepare(text)
+        if message is None:
+            return FallbackResult(LLMOutcome.SKIPPED)
+        chars = len(SYSTEM_PROMPT) + 400 + _SCHEMA_CHARS + len(message)
+        chars += sum(len(e.slug) + len(e.name) + len(e.category) + 3 for e in ctx.catalog[:150])
+        permit = self._admit(ctx, chars, "")
+        if permit is None:
+            return FallbackResult(LLMOutcome.SKIPPED)
+
+        started = time.monotonic()
+        reply, failed_outcome, error_kind, limited = self._invoke(
+            self.classifier.classify, message, catalog=ctx.catalog, timeout=self.timeout
+        )
+        outcome = failed_outcome or LLMOutcome.ERROR
+        rejected_kind = None
 
         classification = None
         if reply is not None:
@@ -132,40 +206,34 @@ class LLMFallback:
                 )
             except ClassifierInvalid as exc:
                 outcome = LLMOutcome(exc.kind)
-                error_kind = exc.kind
+                error_kind = rejected_kind = exc.kind
             else:
                 outcome = self._judge(classification)
-        self.guard.record(classification is not None)
+        self._settle(
+            permit, reply, error_kind, limited, classification is not None, rejected_kind,
+            classification.rejected_slugs if classification else 0,
+        )  # fmt: skip
         self._log(outcome, error_kind, classification, reply, started)
         return FallbackResult(outcome, classification)
 
     def extract(self, text: str, ctx: LLMContext) -> ExtractionResult:
         """The recommendation extraction call (one Groq call, counted by the guard)."""
-        message = redact(text)
-        if not message or not self.recommend:
+        if not self.recommend:
             return ExtractionResult(LLMOutcome.SKIPPED)
-        ok, reason = self.guard.allow(ctx.customer_key)
-        if not ok:
-            logger.info("llm: recommend skipped reason=%s", reason)
+        message = self._prepare(text)
+        if message is None:
+            return ExtractionResult(LLMOutcome.SKIPPED)
+        chars = len(RECOMMEND_PROMPT) + 400 + _SCHEMA_CHARS + len(message)
+        chars += sum(len(slug) + len(name) + 1 for slug, name in ctx.categories[:100])
+        permit = self._admit(ctx, chars, "recommend ")
+        if permit is None:
             return ExtractionResult(LLMOutcome.SKIPPED)
         started = time.monotonic()
-        reply = None
-        outcome, error_kind = LLMOutcome.ERROR, ""
-        try:
-            future = _EXECUTOR.submit(
-                self.classifier.extract, message, categories=ctx.categories, timeout=self.timeout
-            )
-            try:
-                reply = future.result(timeout=self.timeout + _BACKSTOP_SECONDS)
-            except TimeoutError:
-                future.cancel()
-                raise ClassifierTimeout() from None
-        except ClassifierTimeout:
-            outcome, error_kind = LLMOutcome.TIMEOUT, "timeout"
-        except ClassifierError as exc:
-            outcome, error_kind = LLMOutcome.ERROR, exc.kind
-        except Exception as exc:
-            outcome, error_kind = LLMOutcome.ERROR, type(exc).__name__
+        reply, failed_outcome, error_kind, limited = self._invoke(
+            self.classifier.extract, message, categories=ctx.categories, timeout=self.timeout
+        )
+        outcome = failed_outcome or LLMOutcome.ERROR
+        rejected_kind = None
         extraction = None
         if reply is not None:
             try:
@@ -174,9 +242,10 @@ class LLMFallback:
                 )
             except ClassifierInvalid as exc:
                 outcome, error_kind = LLMOutcome(exc.kind), exc.kind
+                rejected_kind = exc.kind
             else:
                 outcome = self.judge_extraction(extraction)
-        self.guard.record(extraction is not None)
+        self._settle(permit, reply, error_kind, limited, extraction is not None, rejected_kind, 0)
         logger.info(
             "llm: recommend outcome=%s error=%s request_type=%s constraints=%s latency_ms=%d "
             "model=%s prompt_tokens=%s completion_tokens=%s",

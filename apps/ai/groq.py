@@ -12,7 +12,10 @@ re-validated by ``apps.ai.classifier.parse_classification``.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
+
+from django.views.decorators.debug import sensitive_variables
 
 from apps.iva_common.http_transport import HttpError, HttpTransport, StdlibTransport
 
@@ -34,9 +37,31 @@ MAX_COMPLETION_TOKENS = 600  # gpt-oss reasons first; the visible JSON is ~100 t
 TEMPERATURE = 0.1
 CONNECT_TIMEOUT = 3.0
 _STRICT_SCHEMA_PREFIXES = ("openai/gpt-oss-",)
+# When the provider reports fewer tokens than this left in the current minute, wait for the
+# advertised reset instead of sending a call that would only be refused.
+LOW_TOKENS_REMAINING = 1500
+MAX_ADVISED_PAUSE_S = 3600.0
+_DURATION_RE = re.compile(r"(?:(\d+(?:\.\d+)?)(ms|h|m|s))")
+
+
+def parse_duration(value: str | None) -> float | None:
+    """Seconds from a provider duration: ``"7.66s"``, ``"2m59.56s"``, ``"250ms"``, ``"30"``."""
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    try:
+        return min(MAX_ADVISED_PAUSE_S, max(0.0, float(text)))
+    except ValueError:
+        pass
+    parts = _DURATION_RE.findall(text)
+    if not parts or "".join(a + u for a, u in parts) != text:
+        return None
+    scale = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
+    return min(MAX_ADVISED_PAUSE_S, sum(float(a) * scale[u] for a, u in parts))
 
 
 class GroqClassifier:
+    @sensitive_variables("api_key")
     def __init__(
         self,
         api_key: str,
@@ -108,6 +133,7 @@ class GroqClassifier:
         )
         return self._send(body, timeout)
 
+    @sensitive_variables("headers")
     def _send(self, body: dict, timeout: float) -> ClassifierReply:
         payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers = {
@@ -128,7 +154,11 @@ class GroqClassifier:
                 raise ClassifierTimeout() from None
             raise ClassifierHttpError("connection") from None
         if response.status == 429:
-            raise ClassifierRateLimited()
+            raise ClassifierRateLimited(
+                parse_duration(response.header("retry-after"))
+                or parse_duration(response.header("x-ratelimit-reset-tokens"))
+                or parse_duration(response.header("x-ratelimit-reset-requests"))
+            )
         if response.status != 200:
             raise ClassifierHttpError("http_error")
         try:
@@ -144,7 +174,25 @@ class GroqClassifier:
             model=str(data.get("model") or self.model)[:80],
             prompt_tokens=_int_or_none(usage.get("prompt_tokens")),
             completion_tokens=_int_or_none(usage.get("completion_tokens")),
+            pause_s=_advised_pause(response),
         )
+
+
+def _advised_pause(response) -> float | None:
+    """A wait to honour after a SUCCESSFUL call, when the headers say the budget is spent."""
+    try:
+        remaining_tokens = int(response.header("x-ratelimit-remaining-tokens"))
+    except (TypeError, ValueError):
+        remaining_tokens = None
+    try:
+        remaining_requests = int(response.header("x-ratelimit-remaining-requests"))
+    except (TypeError, ValueError):
+        remaining_requests = None
+    if remaining_requests is not None and remaining_requests <= 0:
+        return parse_duration(response.header("x-ratelimit-reset-requests"))
+    if remaining_tokens is not None and remaining_tokens < LOW_TOKENS_REMAINING:
+        return parse_duration(response.header("x-ratelimit-reset-tokens"))
+    return None
 
 
 def _int_or_none(value) -> int | None:

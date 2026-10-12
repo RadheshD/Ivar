@@ -18,8 +18,9 @@ from __future__ import annotations
 import json
 import math
 import re
+import unicodedata
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
 from .intents import CLASSIFIABLE_INTENTS, Intent, LLMItem
@@ -27,6 +28,8 @@ from .intents import CLASSIFIABLE_INTENTS, Intent, LLMItem
 UNKNOWN_INTENT = "unknown"
 LLM_LANGUAGES = ("en", "hi", "te", "other")
 MAX_MESSAGE_CHARS = 300
+HARD_INPUT_CEILING = 1000  # IVA_LLM_MAX_INPUT_CHARS is clamped to this; redact never cuts below it
+MAX_ECHO_CHARS = 40  # a model-chosen word that may be shown back to the customer
 MAX_CATALOG_ENTRIES = 150
 MAX_ITEMS = 10
 MAX_MENTION_CHARS = 60
@@ -35,9 +38,23 @@ MAX_RAW_CHARS = 4000
 # Intents the model may name: the existing enum, minus FALLBACK (the model says "unknown").
 LLM_INTENTS = tuple(i for i in CLASSIFIABLE_INTENTS if i is not Intent.FALLBACK)
 
+_URL_RE = re.compile(
+    r"(?i)(?:\b(?:https?|ftp)://|\bwww\.)\S+"
+    r"|\b[\w\-]+(?:\.[\w\-]+)*\.(?:com|in|org|net|io|me|co|app|ly|link|xyz|info)\b(?:/\S*)?"
+)
 _EMAIL_RE = re.compile(r"[\w.+\-]+@[\w\-]+(?:\.[\w\-]+)+")
+# A UPI-style handle: name@bank (no dot after the @).
+_UPI_RE = re.compile(r"(?<![\w.])[\w.\-]{2,}@[A-Za-z][A-Za-z0-9]{1,}\b")
+_PAN_RE = re.compile(r"(?i)\b[A-Z]{5}\d{4}[A-Z]\b")
+_IFSC_RE = re.compile(r"(?i)\b[A-Z]{4}0[A-Z0-9]{6}\b")
+# Twelve digits in groups of four (Aadhaar-like), then 13-19 digit runs (card-like).
+_AADHAAR_RE = re.compile(r"(?<!\d)\d{4}[ \-]?\d{4}[ \-]?\d{4}(?!\d)")
+_CARD_RE = re.compile(r"(?<!\d)(?:\d[ \-]?){12,18}\d(?!\d)")
 # Six or more digits, allowing single separators between them (phones, ids, card numbers).
 _NUMBER_RE = re.compile(r"(?<![\w])\+?\d(?:[ .\-()]{0,2}\d){5,}")
+_PLACEHOLDER_RE = re.compile(r"\[(?:link|email|upi|id|number)\]")
+_REPEAT_RE = re.compile(r"(.)\1{3,}")
+_ECHO_STRIP_RE = re.compile(r"[<>&*_~`\\{}\[\]|\"'\u2018\u2019\u201c\u201d]")
 
 
 # --------------------------------------------------------------------------- data types
@@ -57,6 +74,7 @@ class Classification:
     items: tuple[LLMItem, ...]
     language: str
     ambiguous: bool
+    rejected_slugs: int = field(default=0, compare=False)  # slugs the model invented
 
 
 @dataclass(frozen=True)
@@ -67,6 +85,7 @@ class ClassifierReply:
     model: str = ""
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    pause_s: float | None = None  # the provider says its budget is nearly spent: wait this long
 
 
 class ClassifierError(Exception):
@@ -85,6 +104,10 @@ class ClassifierTimeout(ClassifierError):
 
 class ClassifierRateLimited(ClassifierError):
     kind = "rate_limited"
+
+    def __init__(self, retry_after: float | None = None):
+        super().__init__()
+        self.retry_after = retry_after  # seconds the provider asked us to wait, if it said
 
 
 class ClassifierHttpError(ClassifierError):
@@ -114,12 +137,61 @@ class IntentClassifier(Protocol):
 # --------------------------------------------------------------------------- redaction
 
 
-def redact(text: str) -> str:
-    """Mask emails and phone-like / long digit runs, collapse whitespace, cap the length."""
-    text = _EMAIL_RE.sub("[email]", str(text))
+def redact(text: str, limit: int = MAX_MESSAGE_CHARS) -> str:
+    """Mask links, emails, UPI handles, PAN/IFSC-like codes and phone/card/Aadhaar-like
+    digit runs, collapse whitespace, cap the length."""
+    text = _EMAIL_RE.sub("[email]", str(text))  # before links: a domain inside an address
+    text = _URL_RE.sub("[link]", text)
+    text = _UPI_RE.sub("[upi]", text)
+    text = _PAN_RE.sub("[id]", text)
+    text = _IFSC_RE.sub("[id]", text)
+    text = _AADHAAR_RE.sub("[number]", text)
+    text = _CARD_RE.sub("[number]", text)
     text = _NUMBER_RE.sub("[number]", text)
     text = " ".join(text.split())
-    return text[:MAX_MESSAGE_CHARS]
+    return text[:limit]
+
+
+def has_request_left(redacted: str) -> bool:
+    """False when redaction (or an emoji/digit-only message) left no words to classify."""
+    return any(ch.isalpha() for ch in _PLACEHOLDER_RE.sub(" ", redacted))
+
+
+def prepare_input(text: object, max_chars: int) -> str | None:
+    """Normalise a customer message for the model, or ``None`` when it must not be sent.
+
+    NFKC, drop control / zero-width / bidi-format characters, collapse long runs of one
+    character and whitespace, THEN apply the length limit. Over-length input is never
+    truncated (a cut command could change meaning): it returns ``None``.
+    """
+    if not isinstance(text, str):
+        return None
+    folded = unicodedata.normalize("NFKC", text)
+    cleaned = "".join(
+        " " if ch in "\n\r\t" else ch
+        for ch in folded
+        if ch in "\n\r\t" or unicodedata.category(ch)[0] != "C"
+    )
+    cleaned = _REPEAT_RE.sub(lambda m: m.group(1) * 3, cleaned)
+    cleaned = " ".join(cleaned.split())
+    if not cleaned or len(cleaned) > min(max_chars, HARD_INPUT_CEILING):
+        return None
+    return cleaned
+
+
+def safe_echo(text: str | None, limit: int = MAX_ECHO_CHARS) -> str | None:
+    """A model-produced word that may be shown to a customer INSIDE a template: stripped of
+    control characters, markup and quote characters, redacted, length-capped. Anything that
+    carried a link or personal-data-like token is dropped (``None``)."""
+    if not text:
+        return None
+    folded = unicodedata.normalize("NFKC", str(text))
+    folded = "".join(ch for ch in folded if ch == " " or unicodedata.category(ch)[0] != "C")
+    redacted = redact(folded, limit=HARD_INPUT_CEILING)
+    if _PLACEHOLDER_RE.search(redacted):
+        return None
+    cleaned = " ".join(_ECHO_STRIP_RE.sub(" ", redacted).split())[:limit].strip()
+    return cleaned or None
 
 
 # --------------------------------------------------------------------------- prompt
@@ -189,7 +261,9 @@ def build_system_prompt(catalog: Sequence[CatalogEntry], extra_intents: Sequence
 
 def build_user_message(message: str) -> str:
     """The redacted customer message as a JSON string literal (data, not text to obey)."""
-    return json.dumps({"customer_message": redact(message)}, ensure_ascii=False)
+    return json.dumps(
+        {"customer_message": redact(message, limit=HARD_INPUT_CEILING)}, ensure_ascii=False
+    )
 
 
 # --------------------------------------------------------------------------- validation
@@ -266,6 +340,7 @@ def parse_classification(
     if not isinstance(raw_items, list) or len(raw_items) > MAX_ITEMS:
         raise _invalid("invalid_schema")
     items: list[LLMItem] = []
+    rejected_slugs = 0
     for entry in raw_items:
         if not isinstance(entry, dict) or set(entry) != {"product_slug", "mention", "quantity"}:
             raise _invalid("invalid_schema")
@@ -277,13 +352,17 @@ def parse_classification(
         mention = " ".join(mention.split())[:MAX_MENTION_CHARS]
         if any(not ch.isprintable() for ch in mention):
             mention = ""
+        if slug is not None and slug not in allowed_slugs:
+            rejected_slugs += 1
         items.append(
             LLMItem(
                 product_slug=slug if slug in allowed_slugs else None,
-                mention=mention or None,
+                mention=safe_echo(mention),
                 quantity=quantity
                 if quantity is not None and 1 <= quantity <= max_quantity
                 else None,
             )
         )
-    return Classification(intent, float(confidence), tuple(items), language, ambiguous)
+    return Classification(
+        intent, float(confidence), tuple(items), language, ambiguous, rejected_slugs
+    )
