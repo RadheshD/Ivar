@@ -96,6 +96,13 @@ IVA_PLANNER_URL = env.str("IVA_PLANNER_URL", default="")
 # "See full menu on website" main-menu option.
 IVA_WEBSITE_SHOP_URL = env.str("IVA_WEBSITE_SHOP_URL", default="")
 
+# Native WhatsApp catalog orders (type "order" messages). When IVA_CATALOG_ID is set, an
+# order from any other catalog is ignored with a safe reply; unset skips the check.
+# IVA_CATALOG_ORDER_MAX_QTY caps one product's quantity per order (clamped, customer
+# told); it can never exceed the Backend Port's MAX_LINE_QUANTITY.
+IVA_CATALOG_ID = env.str("IVA_CATALOG_ID", default="")
+IVA_CATALOG_ORDER_MAX_QTY = env.int("IVA_CATALOG_ORDER_MAX_QTY", default=10)
+
 # Gate for `manage.py reset_dev_data` (apps/whatsapp/dev_reset.py): a plain, non-env
 # hardcoded switch, not read from .env, so it can never be flipped on by a stray
 # environment variable. Only config/settings/dev.py turns it on. The reset command's
@@ -151,6 +158,31 @@ IVA_MESSAGE_RETENTION_DAYS = int(env.str("IVA_MESSAGE_RETENTION_DAYS", default="
 IVA_PRODUCT_IMAGE_BASE_URL = env.str("IVA_PRODUCT_IMAGE_BASE_URL", default="")
 
 # --------------------------------------------------------------------------- LLM (intent layer)
+# Groq LLM fallback (apps/ai). OFF by default. Runs only when the rules cannot understand a
+# free-text message. GROQ_API_KEY comes from the environment only; never log or print it.
+IVA_LLM_ENABLED = env.bool("IVA_LLM_ENABLED", default=False)
+GROQ_API_KEY = env.str("GROQ_API_KEY", default="")
+IVA_LLM_MODEL = env.str("IVA_LLM_MODEL", default="openai/gpt-oss-20b")
+IVA_LLM_TIMEOUT_S = env.float("IVA_LLM_TIMEOUT_S", default=4.0)
+IVA_LLM_MIN_CONFIDENCE = env.float("IVA_LLM_MIN_CONFIDENCE", default=0.7)
+IVA_LLM_DAILY_CAP = env.int("IVA_LLM_DAILY_CAP", default=500)
+IVA_LLM_CUSTOMER_PER_MINUTE = env.int("IVA_LLM_CUSTOMER_PER_MINUTE", default=3)
+IVA_LLM_BREAKER_FAILURES = env.int("IVA_LLM_BREAKER_FAILURES", default=5)
+IVA_LLM_BREAKER_COOLDOWN_S = env.int("IVA_LLM_BREAKER_COOLDOWN_S", default=120)
+# Grounded product recommendations (apps/ai/recommend.py). OFF by default; needs the LLM
+# fallback above. The model only extracts constraints; code picks products from the Backend
+# Port and templates write the reply.
+IVA_LLM_RECOMMEND_ENABLED = env.bool("IVA_LLM_RECOMMEND_ENABLED", default=False)
+IVA_LLM_RECOMMEND_MAX_PICKS = env.int("IVA_LLM_RECOMMEND_MAX_PICKS", default=4)
+# Emergency keyword check (apps/ai/safety_keywords.py): code only, before the rules layer and
+# before any LLM call, independent of every IVA_LLM_* flag. ON by default. The contact text is
+# shown after the fixed emergency sentence; it is the owner's own wording (never invented).
+IVA_SAFETY_KEYWORDS_ENABLED = env.bool("IVA_SAFETY_KEYWORDS_ENABLED", default=True)
+IVA_EMERGENCY_CONTACT_TEXT = env.str("IVA_EMERGENCY_CONTACT_TEXT", default="")
+# A cart change guessed by the fuzzy (typo) stage asks Yes/No first.
+IVA_FUZZY_CART_CONFIRM = env.bool("IVA_FUZZY_CART_CONFIRM", default=True)
+# Never correct a word INTO a number word ("weight" -> "eight").
+IVA_FUZZY_NUMBER_GUARD = env.bool("IVA_FUZZY_NUMBER_GUARD", default=True)
 # Empty LLM_PROVIDER = no LLM fallback; the intent layer runs on rules and fuzzy matching.
 LLM_PROVIDER = env.str("LLM_PROVIDER", default="")
 LLM_API_KEY = env.str("LLM_API_KEY", default="")

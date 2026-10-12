@@ -35,6 +35,18 @@ IVA_ORDER_WAIT_SECONDS = 0
 # saved Fake Backend state. Persistence tests opt in with a temporary path.
 IVA_FAKE_BACKEND_STATE_FILE = ""
 IVA_WEBSITE_SHOP_URL = ""
+IVA_CATALOG_ID = ""
+
+# Forced off regardless of the developer's .env: the suite never calls Groq.
+IVA_LLM_ENABLED = False
+GROQ_API_KEY = ""
+IVA_LLM_RECOMMEND_ENABLED = False
+IVA_LLM_RECOMMEND_MAX_PICKS = 4
+IVA_SAFETY_KEYWORDS_ENABLED = True
+IVA_EMERGENCY_CONTACT_TEXT = ""
+IVA_FUZZY_CART_CONFIRM = True
+IVA_FUZZY_NUMBER_GUARD = True
+IVA_CATALOG_ORDER_MAX_QTY = 10
 
 # Forced regardless of the developer's local .env (same reasoning as IVA_BACKEND_ADAPTER
 # above): tests must be deterministic, not dependent on whichever mode a developer

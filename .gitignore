@@ -8,3 +8,13 @@ __pycache__/
 .coverage
 htmlcov/
 .local-data/
+
+exports/
+.antigravity/
+.vscode/
+.idea/
+eval_*.txt
+*.log
+desktop.ini
+.env.*
+!.env.example
