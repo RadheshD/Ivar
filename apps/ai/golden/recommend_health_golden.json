@@ -849,7 +849,7 @@
    "ambiguous": false,
    "action_class": "SAFETY_REPLY",
    "reply_keys": [
-    "safety.emergency"
+    "safety.self_harm"
    ],
    "tags": [
     "emergency",

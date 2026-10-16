@@ -19,6 +19,7 @@ from apps.ai.recommend import (
     emergency_matches,
     has_food_constraints,
     mapped_categories,
+    self_harm_matches,
 )
 
 from .backend_port import MAX_PAGE_SIZE, NotFound, ProductDetail, ProductSummary
@@ -88,12 +89,12 @@ class RecommendFlow:
         and never changes which products are chosen or how they are sorted."""
         return [self._text(c, key) for key in self._SAFETY_KEYS.get(req.health_context, ())]
 
-    def _emergency_reply(self, c) -> list[Outbound]:
-        body = t(c.lang, "safety.emergency")
+    def _emergency_reply(self, c, key: str = "safety.emergency") -> list[Outbound]:
+        body = t(c.lang, key)
         contact = (getattr(settings, "IVA_EMERGENCY_CONTACT_TEXT", "") or "").strip()
         if contact:
             body += "\n" + contact  # the owner's own text; the channel never invents numbers
-        return [OutButtons(body, (self._menu_button(c),), "safety.emergency")]
+        return [OutButtons(body, (self._menu_button(c),), key)]
 
     def _emergency_check(self, c, inbound) -> list[Outbound] | None:
         """Keyword check on free text, in code, before the rules layer and any model call.
@@ -103,8 +104,9 @@ class RecommendFlow:
         text = inbound.text
         if inbound.reply_id or not text or not emergency_matches(text):
             return None
-        logger.info("engine: safety stage=safety kind=emergency language=%s", c.lang)
-        return self._emergency_reply(c)
+        kind = "self_harm" if self_harm_matches(text) else "emergency"
+        logger.info("engine: safety stage=safety kind=%s language=%s", kind, c.lang)
+        return self._emergency_reply(c, f"safety.{kind}")
 
     def _reco_compose(self, c, req: RecommendRequest) -> list[Outbound]:
         """[safety block] then [picks block]. A health-only message gets the safety block

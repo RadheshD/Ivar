@@ -113,3 +113,85 @@ EMERGENCY_KEYWORDS: dict[str, tuple[bool, tuple[str, ...]]] = {
         ),
     ),
 }
+
+
+# Self-injury and self-harm phrasings. A match gets the ``safety.self_harm`` reply (the same
+# text as ``safety.emergency`` until a qualified reviewer supplies wording). Latin-script phrases
+# match whole words and "*" stands for up to four other words. COVERAGE IS INCOMPLETE: no keyword
+# list and no model can catch every phrasing. Every non-English list is a starter set that NEEDS
+# NATIVE-SPEAKER REVIEW, and the reply wording MUST be reviewed by a qualified person.
+SELF_HARM_KEYWORDS: dict[str, tuple[bool, tuple[str, ...]]] = {
+    "en": (
+        False,
+        (
+            "cutting myself",
+            "cut myself",
+            "cutting my hand",
+            "cutting my wrist",
+            "cutting my wrists",
+            "cutting my arm",
+            "cutting my arms",
+            "cutting my leg",
+            "cutting my finger",
+            "cut my wrist",
+            "cut my wrists",
+            "cut my hand",
+            "slit my wrist",
+            "slit my wrists",
+            "hurt myself",
+            "hurting myself",
+            "harm myself",
+            "harming myself",
+            "injure myself",
+            "i want to die",
+            "i wanna die",
+            "want to die",
+            "end it all",
+            "no reason to live",
+            "better off dead",
+            "kill myself",
+            "killing myself",
+            "end my life",
+            "suicide",
+            "suicidal",
+        ),
+    ),
+    "hi": (
+        True,
+        ("खुद को नुकसान", "खुद को चोट", "खुद को काट", "हाथ काट", "नस काट", "मरना चाहता", "मरना चाहती"),
+    ),
+    "te": (
+        True,
+        ("నన్ను నేను గాయ", "చేయి కోసుకు", "చేతిని కోసుకు", "చనిపోవాలని", "ఆత్మహత్య"),
+    ),
+    "hinglish": (
+        True,
+        ("khud ko hurt", "khud ko nuksan", "khud ko cut", "haath kaat", "nas kaat", "marna chahta",
+         "marna chahti"),
+    ),
+    "tenglish": (
+        True,
+        ("naa cheyyi kosu", "nannu nenu", "chanipovali", "aatmahatya"),
+    ),
+}  # fmt: skip
+
+# Bleeding and injury phrasings: the emergency reply.
+INJURY_KEYWORDS: dict[str, tuple[bool, tuple[str, ...]]] = {
+    "en": (
+        False,
+        (
+            "bleeding",
+            "bleeding a lot",
+            "wont stop bleeding",
+            "deep cut",
+            "badly cut",
+            "cut badly",
+            "broken bone",
+            "head injury",
+        ),
+    ),
+    "hi": (True, ("खून बह", "खून निकल", "गहरा कट", "गहरी चोट")),
+    "te": (True, ("రక్తం కారు", "రక్తం వస్తోంది", "లోతైన గాయం")),
+    "hinglish": (True, ("khoon beh", "khoon nikal", "gehra cut", "bahut khoon")),
+    "tenglish": (True, ("raktam kaaru", "raktam vastondi", "lotaina gaayam")),
+}

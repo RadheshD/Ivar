@@ -281,7 +281,9 @@ def test_followups_are_fresh_messages_with_the_neutral_reply(chat, groq):
 def test_emergency_keywords_get_only_the_emergency_reply_and_no_model_call(chat, groq, text):
     onboard(chat)
     chat.send(text)
-    assert chat.keys == ["safety.emergency"] and groq.calls == 0
+    # self-harm wording has its own template key (the same text until a reviewer supplies wording)
+    key = "safety.self_harm" if "kill myself" in text else "safety.emergency"
+    assert chat.keys == [key] and groq.calls == 0
     assert chat.last[0].body == EMERGENCY_REPLY  # the customer's saved language is English
     assert [b.id for b in chat.last[0].buttons] == ["CATEGORY_SELECT"]  # a Menu button only
     assert names(chat) == [] and cart_of(chat) == {}
@@ -353,7 +355,7 @@ def test_emergency_logs_stage_and_language_only(chat, caplog):
     line = next(
         r.getMessage() for r in caplog.records if r.getMessage().startswith("engine: safety")
     )
-    assert line == "engine: safety stage=safety kind=emergency language=en"
+    assert line == "engine: safety stage=safety kind=self_harm language=en"
     assert "kill" not in caplog.text
 
 

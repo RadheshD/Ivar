@@ -241,6 +241,7 @@ MESSAGES = {
     "recommend.what.ingredient": "ingredients",
     "recommend.what.allergen": "allergens",
     "btn.add_all_to_cart": "Add all to cart",
+    "safety.self_harm": "This sounds serious. Please contact a doctor or your local emergency services right now.",
     # ------------------------------------------------------------------ errors
     "error.unavailable": "Sorry, our service is busy right now. Please try again in a moment.",
     "error.generic": "Sorry, something went wrong. Please try again.",

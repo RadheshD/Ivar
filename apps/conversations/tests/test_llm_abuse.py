@@ -294,7 +294,8 @@ def test_the_safety_keyword_replies_do_not_depend_on_the_model_or_its_budget():
     llm_state.pause(3600)
     for text in ("chest pain", "heart attack", "I want to kill myself"):
         chat.send(text)
-        assert "safety.emergency" in chat.keys
+        want = "safety.self_harm" if "kill myself" in text else "safety.emergency"
+        assert chat.keys[0] == want
     assert groq.calls == 0
 
 

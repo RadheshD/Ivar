@@ -29,7 +29,7 @@ from .recommend_cues import (
     HEALTH_CUES,
     MEDICAL_CUES,
 )
-from .safety_keywords import EMERGENCY_KEYWORDS
+from .safety_keywords import EMERGENCY_KEYWORDS, INJURY_KEYWORDS, SELF_HARM_KEYWORDS
 from .text import normalize
 
 REQUEST_TYPES = ("recommend", "diet_plan", "product_question", "medical", "other")
@@ -391,9 +391,23 @@ def emergency_matches(text: str, keywords: dict | None = None) -> bool:
     runs before the rules layer and before any model call."""
     tokens = _norm_words(text)
     joined = " ".join(tokens)
+    tables = (keywords,) if keywords else (EMERGENCY_KEYWORDS, INJURY_KEYWORDS, SELF_HARM_KEYWORDS)
     return any(
         _phrase_matches(tokens, joined, phrase)
-        for _review, phrases in (keywords or EMERGENCY_KEYWORDS).values()
+        for table in tables
+        for _review, phrases in table.values()
+        for phrase in phrases
+    )
+
+
+def self_harm_matches(text: str) -> bool:
+    """True for self-injury / self-harm phrasings (``SELF_HARM_KEYWORDS``): the
+    ``safety.self_harm`` reply. Code only; runs before the rules layer and any model call."""
+    tokens = _norm_words(text)
+    joined = " ".join(tokens)
+    return any(
+        _phrase_matches(tokens, joined, phrase)
+        for _review, phrases in SELF_HARM_KEYWORDS.values()
         for phrase in phrases
     )
 
