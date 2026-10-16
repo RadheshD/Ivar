@@ -231,13 +231,22 @@ def test_no_wait_for_a_text_only_card_or_a_light_message():
     assert not any(e.startswith("wait") for e in rec.events)
 
 
-def test_no_wait_when_a_large_message_is_last_or_followed_by_a_non_buttons_message():
+def test_no_wait_when_a_large_message_is_last_or_followed_by_another_large_message():
     rec = Recorder()
     send_replies(WA_ID, [_carousel()], client=rec.client, wait_for_status=rec.waiter)
-    send_replies(
-        WA_ID, [_carousel(), OutText("hi", "x")], client=rec.client, wait_for_status=rec.waiter
-    )
+    send_replies(WA_ID, [_carousel(), _carousel()], client=rec.client, wait_for_status=rec.waiter)
     assert not any(e.startswith("wait") for e in rec.events)
+
+
+def test_a_text_message_after_a_large_message_waits_too():
+    # The "nutrition values are not verified" note is plain text: it must not overtake the carousel.
+    rec = Recorder()
+    send_replies(
+        WA_ID, [_carousel(), OutText("note", "product.unverified")],
+        client=rec.client, wait_for_status=rec.waiter,
+    )  # fmt: skip
+    assert rec.events[0] == "send:carousel" and rec.events[1].startswith("wait")
+    assert rec.events[-1].startswith("send:")
 
 
 def test_a_failed_large_send_does_not_wait():

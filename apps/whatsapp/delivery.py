@@ -12,6 +12,7 @@ from apps.conversations.channel import (
     OutButtons,
     OutCarousel,
     OutProductCard,
+    OutText,
 )
 from apps.conversations.renderers import render
 from apps.iva_common.logging import mask_phone
@@ -47,7 +48,9 @@ def _is_large(reply: Outbound) -> bool:
 
 
 def _next_is_buttons(queue: list[Outbound]) -> bool:
-    return bool(queue) and isinstance(queue[0], OutButtons)
+    """Is the next message a plain text or buttons message? Either could overtake a carousel
+    or image card that WhatsApp is still preparing (the "nutrition not verified" note is text)."""
+    return bool(queue) and isinstance(queue[0], OutButtons | OutText)
 
 
 def send_replies(
