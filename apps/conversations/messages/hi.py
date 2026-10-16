@@ -133,6 +133,7 @@ MESSAGES = {
     "checkout.type_address": "कृपया अपना पूरा डिलीवरी पता लिखें।",
     "checkout.new_address": "नया पता",
     "checkout.address_invalid": "कृपया पूरा पता लिखें (कम से कम 10 अक्षर)।",
+    "checkout.address_unclear": "यह डिलीवरी का पता नहीं लग रहा। कृपया मकान या फ्लैट नंबर, सड़क, इलाका और शहर लिखें, जैसे: Flat 4B, Road 12, Banjara Hills, Hyderabad।",
     "checkout.confirm": "कृपया अपना ऑर्डर पक्का करें।",
     "checkout.deliver_to": "डिलीवरी पता: {address}",
     "checkout.created": "ऑर्डर {order} हो गया। कुल {total}।",

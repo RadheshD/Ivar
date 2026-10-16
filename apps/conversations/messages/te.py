@@ -132,6 +132,7 @@ MESSAGES = {
     "checkout.type_address": "దయచేసి మీ పూర్తి డెలివరీ చిరునామా టైప్ చేయండి.",
     "checkout.new_address": "కొత్త చిరునామా",
     "checkout.address_invalid": "దయచేసి పూర్తి చిరునామా టైప్ చేయండి (కనీసం 10 అక్షరాలు).",
+    "checkout.address_unclear": "ఇది డెలివరీ చిరునామాలా అనిపించడం లేదు. దయచేసి ఇంటి లేదా ఫ్లాట్ నంబర్, వీధి, ప్రాంతం, నగరం టైప్ చేయండి, ఉదా: Flat 4B, Road 12, Banjara Hills, Hyderabad.",
     "checkout.confirm": "దయచేసి మీ ఆర్డర్‌ను నిర్ధారించండి.",
     "checkout.deliver_to": "డెలివరీ చిరునామా: {address}",
     "checkout.created": "ఆర్డర్ {order} నమోదైంది. మొత్తం {total}.",

@@ -130,6 +130,7 @@ MESSAGES = {
     "checkout.type_address": "Please type your full delivery address.",
     "checkout.new_address": "New address",
     "checkout.address_invalid": "Please type your complete address (at least 10 characters).",
+    "checkout.address_unclear": "That doesn't look like a delivery address. Please type house or flat number, street, area and city, for example: Flat 4B, Road 12, Banjara Hills, Hyderabad.",
     "checkout.confirm": "Please confirm your order.",
     "checkout.deliver_to": "Deliver to: {address}",
     "checkout.created": "Order {order} placed. Total {total}.",

@@ -35,6 +35,7 @@ from apps.ai.text import normalize
 from apps.iva_common.money import format_money
 
 from .adapters import get_backend
+from .address_check import looks_like_address
 from .backend_port import (
     DIETS,
     MAX_PAGE_SIZE,
@@ -1817,6 +1818,9 @@ class ConversationEngine(RecommendFlow):
         if not ADDRESS_MIN <= len(address_text) <= ADDRESS_MAX:
             body = t(c.lang, "checkout.address_invalid")
             return [OutButtons(body, (self._menu_button(c),), "checkout.address_invalid")]
+        if not looks_like_address(address_text):  # long enough, but not an address ("zork florp")
+            body = t(c.lang, "checkout.address_unclear")
+            return [OutButtons(body, (self._menu_button(c),), "checkout.address_unclear")]
         address = self.backend.add_address(c.customer.id, address_text)
         c.session.address_id = address.id
         return self._confirm(c)
