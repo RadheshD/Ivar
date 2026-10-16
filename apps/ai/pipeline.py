@@ -10,13 +10,15 @@ logged, and phone numbers are masked before text is sent to the LLM.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
+from django.conf import settings
+
 from apps.iva_common.logging import mask_text
 
-from . import constraints, fuzzy, rules
+from . import code_router, constraints, fuzzy, rules
 from .intents import (
     RECOMMEND_INTENT_NAMES,
     Entities,
@@ -33,9 +35,14 @@ from .llm import LLMClient, LLMTimeout, build_prompt, client_from_settings, time
 from .llm_fallback import ExtractionResult, FallbackResult, LLMContext, LLMFallback
 from .plan_message import parse_plan_message
 from .recommend import (
+    HEALTH_CUES,
     advice_cue_matches,
     any_explicit_sort,
     apply_goal_sort,
+    constraint_keys,
+    cue_matches,
+    goal_only_sort,
+    goal_sort,
     is_followup,
     medical_matches,
     routing_cue_matches,
@@ -88,20 +95,39 @@ class IntentPipeline:
         product_names: Iterable[str] = (),
         category_names: Iterable[str] = (),
         llm_context: LLMContext | None = None,
+        code_categories: Sequence[tuple[str, str]] = (),
     ) -> IntentResult:
         """Classify one inbound message. ``product_names``/``category_names`` are optional
         plain-string catalog hints that improve fuzzy matching. ``llm_context`` is passed
-        only when the caller has decided the LLM fallback may run for this message."""
+        only when the caller has decided the LLM fallback may run for this message.
+        ``code_categories`` are the Port's ``(slug, name)`` categories, used by the code-only
+        routes (a category word restricts picks) whether or not a model is available."""
         try:
-            return self._understand(text, reply_id, product_names, category_names, llm_context)
+            result = self._understand(
+                text, reply_id, product_names, category_names, llm_context, code_categories
+            )
+            return self._with_notes(text, result)
         except Exception as exc:
             logger.error("intent pipeline failed: error=%s", type(exc).__name__)
             return IntentResult(Intent.FALLBACK, 0.0, Stage.NONE)
 
+    @staticmethod
+    def _with_notes(text, result: IntentResult) -> IntentResult:
+        """A bare number range with no price or add cue ("snacks 15-20") is never used; say so."""
+        if not isinstance(text, str) or result.request is not None:
+            return result
+        if result.intent not in (Intent.CATEGORY_SELECT, Intent.PRODUCT_SEARCH):
+            return result
+        if result.stage not in (Stage.RULES, Stage.FUZZY) or not constraints.has_hyphen_range(text):
+            return result
+        if constraints.parse(tokenize(constraints.prepare_ranges(text))).has_range:
+            return result
+        return replace(result, notes=("numbers.ignored",))
+
     # ------------------------------------------------------------------ stages
 
     def _understand(
-        self, text, reply_id, product_names, category_names, llm_context=None
+        self, text, reply_id, product_names, category_names, llm_context=None, code_categories=()
     ) -> IntentResult:
         # 0. The AI Planner's "IVA PLAN v1" handoff, ahead of every other stage. Checked
         # against the original text (its own length cap, not MAX_TEXT_LENGTH's).
@@ -137,12 +163,21 @@ class IntentPipeline:
             return IntentResult(Intent.FALLBACK, 0.0, Stage.NONE, detected_language=language)
 
         vocab = rules.Vocabulary.build(product_names, category_names)
+        cons = constraints.parse(tokens)
+        # The code-only routes need no model and no LLM setting (IVA_CODE_CONSTRAINTS_ENABLED
+        # switches them as a group): safety wording, product facts, labels, plan requests, price
+        # limits, diet words, the protein sort and goal words.
+        code_on = reply_id is None and getattr(settings, "IVA_CODE_CONSTRAINTS_ENABLED", True)
+        if code_on:
+            routed = code_router.route(text, tokens, vocab, language, cons)
+            if routed is not None:
+                logger.info("pipeline: code route kind=%s", routed.request.kind)
+                return self._with_categories(routed, tokens, code_categories)
 
         # 2. Rules / keywords / aliases on the words as typed.
         raw = rules.match(tokens, vocab, no_quantity=pair)
         # 3. Fuzzy: correct unknown words and match whole catalog names.
         corrected, changed = fuzzy.correct_tokens(tokens, vocab)
-        cons = constraints.parse(tokens)
         if cons.cue_indices:  # price, comparator, diet and protein words stay as typed
             corrected = [tokens[i] if i in cons.cue_indices else w for i, w in enumerate(corrected)]
             changed = corrected != tokens
@@ -161,14 +196,13 @@ class IntentPipeline:
         # recommendation cue or a health/weight-loss phrase can take priority over a weak
         # rules/fuzzy product-search guess. ``deferred`` keeps that guess as the answer if the
         # flow has nothing to say, so behaviour only changes when the flow actually answers.
-        flags_on = self._fallback is not None and self._fallback.recommend and reply_id is None
-        recommend_on = flags_on and llm_context is not None
+        goal = goal_only_sort(text) if (code_on and text) else None
         # A constraint the customer stated (a price limit, a diet, "high protein") is never
         # dropped by a name search: a list-showing guess becomes a recommendation instead,
         # unless the words name one real product ("protein smoothie under 300").
         # This route needs no model: with the flags on it runs in EVERY conversation state
         # (even when the LLM may not be called, e.g. a pending choice), from code-read values.
-        constraint_on = flags_on and (bool(cons) or cons.unreadable)
+        constraint_on = code_on and (bool(cons) or cons.unreadable or goal is not None)
         deferred = None
         via_constraint = False
         if decision is not None:
@@ -180,26 +214,43 @@ class IntentPipeline:
                     entities = replace(found.entities, product_query=exact)
                     return self._decided(replace(found, entities=entities), stage, language)
             if list_guess or (
-                recommend_on and self._recommendation_outranks(text, tokens, found, stage, vocab)
+                code_on and self._recommendation_outranks(text, tokens, found, stage, vocab)
             ):
                 deferred = self._decided(found, stage, language)
                 via_constraint = list_guess
             else:
                 return self._decided(found, stage, language)
-        if recommend_on and medical_matches(text) and not any_explicit_sort(text):
+        if code_on and medical_matches(text) and not any_explicit_sort(text):
             logger.info("pipeline: medical phrase matched; no model call")
             return self._medical_result(language)
         if constraint_on and (via_constraint or decision is None):
-            if medical_matches(text) and not any_explicit_sort(text):
-                logger.info("pipeline: medical phrase matched; no model call")
-                return self._medical_result(language)
-            return self._constraint_result(text, tokens, language, llm_context, cons)
+            return self._constraint_result(
+                text, tokens, language, llm_context, cons, code_categories
+            )
+        cue_done = False
+        cue_req = None
+        if (
+            code_on
+            and (decision is None or deferred is not None)
+            and routing_cue_matches(text)
+            and not self._names_in_text(tokens, vocab)
+        ):
+            decided, cue_req = self._cue_route(
+                text, tokens, language, llm_context, cons, code_categories
+            )
+            if decided is not None:
+                return decided
+            # the recommendation extraction already ran (or this is a code-only turn): do not ask
+            # again; with the recommendation flag off the classifier below still gets its turn
+            cue_done = (
+                self._fallback is not None and self._fallback.recommend and llm_context is not None
+            )
 
         # 4. LLM fallback, 5. schema validation.
         new_path = self._fallback is not None and llm_context is not None and reply_id is None
         if new_path:
             outcome, validated = LLMOutcome.NOT_CALLED, None
-            if self._fallback.recommend and routing_cue_matches(text):
+            if self._fallback.recommend and not cue_done and routing_cue_matches(text):
                 # A recommendation cue: ONE call, straight to the extraction (no classifier).
                 er = self._fallback.extract(text, llm_context)
                 decided = self._from_extraction(er, language, text=text, route="cue")
@@ -225,6 +276,16 @@ class IntentPipeline:
                 decided = self._from_classification(fb, language, tokens)
                 if decided is not None:
                     return decided
+            if cue_req is not None and fb.outcome is not LLMOutcome.OK:
+                return IntentResult(
+                    Intent.PRODUCT_SEARCH,
+                    1.0,
+                    Stage.RULES,
+                    Entities(),
+                    language,
+                    llm_outcome=fb.outcome,
+                    request=cue_req,
+                )  # fmt: skip  (a recommendation cue the model did not take up: what code read)
             if deferred is not None:
                 return deferred  # the flow had no answer: keep the rules' guess
         else:
@@ -264,6 +325,16 @@ class IntentPipeline:
                 llm_outcome=outcome,
             )
         entities = keep_relevant(Intent.FALLBACK, raw.entities)
+        net = self._health_net(text, llm_context, language)
+        if net is not None:
+            return net
+        if cue_req is not None:
+            # A recommendation cue the model did not take up: what the code read stands (with
+            # nothing read, the category menu), never "I didn't understand".
+            return IntentResult(
+                Intent.PRODUCT_SEARCH, 1.0, Stage.RULES, Entities(), language,
+                llm_outcome=outcome, request=cue_req,
+            )  # fmt: skip
         return IntentResult(
             Intent.FALLBACK, 0.0, Stage.NONE, entities, language, llm_outcome=outcome
         )
@@ -293,7 +364,13 @@ class IntentPipeline:
         return None
 
     def _constraint_result(
-        self, text, tokens, language, llm_context: LLMContext | None, cons: constraints.Constraints
+        self,
+        text,
+        tokens,
+        language,
+        llm_context: LLMContext | None,
+        cons: constraints.Constraints,
+        code_categories=(),
     ) -> IntentResult:
         """Answer a message with stated constraints through the recommendation flow. The
         extraction call (when it works) supplies the category and anything the code did not
@@ -310,10 +387,11 @@ class IntentPipeline:
                 Intent.PRODUCT_SEARCH, 1.0, Stage.RULES, Entities(), language, request=request
             )
         logger.info("pipeline: constraint route cues=%s", list(cons.names))
-        if llm_context is None:  # the model may not be called for this message: code only
-            er, categories = ExtractionResult(LLMOutcome.SKIPPED), ()
+        if llm_context is None or self._fallback is None:  # no model for this message: code only
+            er, categories = ExtractionResult(LLMOutcome.SKIPPED), tuple(code_categories)
         else:
-            er, categories = self._fallback.extract(text, llm_context), llm_context.categories
+            er = self._fallback.extract(text, llm_context)
+            categories = llm_context.categories or tuple(code_categories)
         return self.constraint_answer(er, language, text, tokens, categories, cons)
 
     @classmethod
@@ -340,16 +418,135 @@ class IntentPipeline:
             blank = RecommendRequest(kind="recommend", route="constraint")
             # The goal-word sort is read in code too: it must not depend on the model being up.
             request = apply_goal_sort(constraints.overlay(blank, cons), text)
+            request = replace(request, asks_advice=advice_cue_matches(text))
+            if cue_matches(text, HEALTH_CUES):
+                request = replace(request, health_context="symptom")
             base = IntentResult(
                 Intent.PRODUCT_SEARCH, 1.0, Stage.RULES, Entities(), language,
                 llm_outcome=er.outcome,
             )  # fmt: skip
         if request.asks_advice and not advice_cue_matches(text):
             request = replace(request, asks_advice=False)  # the model's flag alone shows nothing
-        if request.category_slug is None:
-            slug = constraints.category_slug_in(tokens, categories)
-            request = replace(request, category_slug=slug)
-        return replace(base, request=request)
+        before = request
+        if not request.meal_time:
+            request = code_router.with_category(request, tokens, categories)
+        found = tuple(
+            k
+            for k in ("category_slug", "category_slugs")
+            if getattr(request, k) != getattr(before, k)
+        )
+        return replace(base, request=cls._attribute(request, found))
+
+    @staticmethod
+    def _attribute(request: RecommendRequest, extra: tuple[str, ...] = ()) -> RecommendRequest:
+        """Which constraint names were read in code and which only the model supplied (names
+        only, for the log line)."""
+        code = set(request.code_keys) | set(extra)
+        if request.sort_from_goal:
+            code.add("sort")
+        return replace(
+            request,
+            code_keys=tuple(sorted(code)),
+            model_keys=tuple(k for k in constraint_keys(request) if k not in code),
+        )
+
+    @classmethod
+    def _code_request(cls, text, tokens, cons, categories) -> RecommendRequest:
+        """What the CODE reads from a recommendation message: price, diet, sort, a goal word and
+        a category word. Used with or without a model."""
+        request = constraints.overlay(RecommendRequest(kind="recommend", route="cue"), cons)
+        request = apply_goal_sort(request, text)
+        request = code_router.with_category(request, tokens, categories)
+        health = "symptom" if cue_matches(text, HEALTH_CUES) else "none"  # fixed sentences only
+        request = replace(request, asks_advice=advice_cue_matches(text), health_context=health)
+        return replace(cls._attribute(request, tuple(constraint_keys(request))), model_keys=())
+
+    @classmethod
+    def cue_answer(
+        cls, er: ExtractionResult, language, text, tokens, categories, cons, code_req
+    ) -> IntentResult | None:
+        """The result for a recommendation-cue message given the extraction attempt ``er`` (also
+        used by the eval harness). The code-read request wins over any model value; the model may
+        only ADD fields; "ambiguous"/"clarify" never overrides something the code read. ``None`` =
+        the model says this is not a recommendation request."""
+        if er.outcome is LLMOutcome.UNKNOWN:
+            return None
+        decided = cls._from_extraction(er, language, text=text, route="cue")
+        req = decided.request if decided is not None else None
+        if req is not None and req.health_context == "emergency":
+            return decided
+        code_names = tuple(constraint_keys(code_req))
+        if req is not None and req.kind in ("recommend", "diet_plan"):
+            fields: dict = {}
+            for name in ("max_price", "min_price", "diet_type"):
+                if getattr(code_req, name) is not None:
+                    fields[name] = getattr(code_req, name)
+            if code_req.sort:
+                fields["sort"], fields["sort_from_goal"] = code_req.sort, code_req.sort_from_goal
+            # a meal time ("breakfast options") is not a category: the model's meal-time reading is
+            # kept and answered by its own fixed sentence
+            if code_req.category_slugs and not req.category_slug and not req.meal_time:
+                fields["category_slugs"] = code_req.category_slugs
+            if code_req.category_slug and not req.meal_time:
+                fields["category_slug"] = code_req.category_slug
+            if code_req.health_context != "none" and req.health_context == "none":
+                fields["health_context"] = code_req.health_context  # a health word read in code
+            merged = replace(req, cues=code_req.cues, **fields)
+            return replace(decided, request=cls._attribute(merged, code_names))
+        if req is not None and req.kind in ("product_question", "medical"):
+            return decided
+        if req is not None and req.kind == "followup":
+            return decided
+        read_something = bool(code_names)
+        if req is not None and req.kind == "clarify" and not read_something:
+            return decided  # nothing read by code or model: the generic "tell me more"
+        # No usable model reply (skipped, failed, ambiguous, low confidence): the code-read
+        # request stands. With nothing read it is the category menu, never catalog-order picks.
+        return IntentResult(
+            Intent.PRODUCT_SEARCH, 1.0, Stage.RULES, Entities(), language,
+            llm_outcome=er.outcome, request=code_req,
+        )  # fmt: skip
+
+    def _cue_route(self, text, tokens, language, llm_context, cons, code_categories):
+        code_req = self._code_request(text, tokens, cons, code_categories)
+        use_model = (
+            self._fallback is not None and self._fallback.recommend and llm_context is not None
+        )
+        if (
+            not use_model
+            and self._fallback is not None
+            and llm_context is not None
+            and not constraint_keys(code_req)
+        ):
+            return None, code_req  # nothing read in code: the classifier path decides first
+        if use_model:
+            er = self._fallback.extract(text, llm_context)
+            categories = llm_context.categories or tuple(code_categories)
+        else:
+            er, categories = ExtractionResult(LLMOutcome.SKIPPED), tuple(code_categories)
+        return self.cue_answer(er, language, text, tokens, categories, cons, code_req), code_req
+
+    @staticmethod
+    def _with_categories(result: IntentResult, tokens, categories) -> IntentResult:
+        if result.request is None:
+            return result
+        return replace(
+            result, request=code_router.with_category(result.request, tokens, categories)
+        )
+
+    def _health_net(self, text, llm_context, language) -> IntentResult | None:
+        """The second safety net: a free-text message nothing understood gets ONE health-only
+        model check (through the same guard, budget and kill switch), so a phrasing the keyword
+        data misses can still reach the emergency reply."""
+        if self._fallback is None or llm_context is None or not isinstance(text, str):
+            return None
+        if not self._fallback.health_check(text, llm_context):
+            return None
+        logger.info("pipeline: safety net stage=safety kind=emergency")
+        request = RecommendRequest(kind="recommend", route="safety", health_context="emergency")
+        return IntentResult(
+            Intent.PRODUCT_SEARCH, 1.0, Stage.SAFETY, Entities(), language, request=request
+        )
 
     @staticmethod
     def _names_in_text(tokens: list[str], vocab: rules.Vocabulary) -> bool:
@@ -418,6 +615,14 @@ class IntentPipeline:
         request = replace(
             apply_goal_sort(sanitize_for_health(ext.request, text), text), route=route
         )
+        goal = goal_sort(text) if text else None
+        if (
+            goal
+            and request.kind in ("recommend", "diet_plan")
+            and request.sort != goal
+            and not any_explicit_sort(text or "")
+        ):  # a goal word is read in code: the model may add fields, not replace this one
+            request = replace(request, sort=goal, sort_from_goal=True)
         if request.asks_advice and not (text and advice_cue_matches(text)):
             request = replace(request, asks_advice=False)  # the model's flag alone shows nothing
         if is_followup(request, text):

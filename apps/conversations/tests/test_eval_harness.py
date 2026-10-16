@@ -191,8 +191,9 @@ def test_action_classes_for_the_other_flows():
     harness = Harness()
     plan = harness.evaluate(entry_by("recommend", request_type="diet_plan", language="en"),
                             "recommend", None, None)  # fmt: skip
-    # a failed extraction call falls back to the category menu (a read-only reply)
-    assert plan["action_class"] == READ_ONLY_REPLY and plan["reply_keys"] == ["menu.body"]
+    # a plan request is read in code: the planner hand-off, whatever the extraction call did
+    assert plan["action_class"] == PLANNER_HANDOFF
+    assert plan["reply_keys"][0] == "recommend.diet_plan"
     cases = {
         "diet_plan": PLANNER_HANDOFF,
         "medical": READ_ONLY_REPLY,

@@ -231,12 +231,12 @@ def test_no_template_links_a_food_to_a_symptom_or_condition():
 def test_unsupported_constraints_are_disclosed(chat, groq, value, label):
     onboard(chat)
     ask(chat, groq, CUE, unsupported_constraint=value)
-    assert chat.last[0].key == "recommend.unsupported"
-    assert (
-        "I can't filter by" in chat.last[0].body
-        and "yet, so these are the closest options" in chat.last[0].body
-    )
-    assert names(chat)  # the closest options are still shown
+    assert chat.last[0].key == "recommend.unsupported_menu"
+    assert "I can't filter by" in chat.last[0].body
+    assert chat.last[0].body.endswith("yet. Here is our menu by category.")
+    assert "closest options" not in chat.last[0].body  # only the menu is shown
+    # disclosed, then the category menu: never picks in catalog order
+    assert chat.keys[-1] == "menu.body" and not names(chat)
 
 
 def test_popularity_is_declined_with_the_fixed_sentence(chat, groq):
@@ -454,7 +454,9 @@ def test_flags_off_keeps_the_previous_behaviour_apart_from_the_safety_check(
     onboard(chat)
     groq.classify_queue.append(cls("unknown"))
     chat.send("I'm having a little headache, what do I have for dinner?")
-    assert chat.keys == ["search.none_neutral"] and groq.extract_messages == []  # as before
+    # a health word is read in code now: the fixed sentences, then the category menu
+    assert chat.keys == ["safety.medical", "safety.see_doctor", "menu.body"]
+    assert groq.extract_messages == []
     chat.send("chest pain")  # the one thing that is always on
     assert chat.keys == ["safety.emergency"]
 

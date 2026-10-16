@@ -170,17 +170,19 @@ def row_for(chat, slug):
 
 def test_the_confirmed_bug_after_the_list_the_tap_asks_how_many(plain):
     onboard(plain)
-    plain.send("add protein under 300")  # a choose-one list for an add, no quantity given
-    assert "choose.product" in plain.keys and cart_of(plain) == {}
-    plain.tap(row_for(plain, "active-protein"))
-    assert BAD_QUANTITY not in plain.keys and cart_of(plain) == {}
-    assert "product.ask_qty" in plain.keys  # the existing rule for a choice with no quantity
+    plain.send("add protein under 300")  # the limit is applied in code: picks up to 300
+    assert "recommend.intro" in plain.keys and cart_of(plain) == {}
+    assert BAD_QUANTITY not in plain.keys  # 300 is a price, never a quantity
+    plain.tap(next(i for i in plain.ids if i.startswith("ACT:addcard:")))
+    assert BAD_QUANTITY not in plain.keys and len(cart_of(plain)) == 1  # one, by an explicit tap
+    assert list(cart_of(plain).values()) == [1]  # exactly one unit
+    assert not {300, 299, 250} & set(cart_of(plain).values())  # no price number is a quantity
 
 
 def test_the_phone_message_with_the_flags_off_is_a_plain_search_without_a_quantity(plain):
     onboard(plain)
     plain.send(PHONE)
-    assert "recommend.intro" not in plain.keys and cart_of(plain) == {}
+    assert "recommend.intro" in plain.keys and cart_of(plain) == {}  # read and applied in code
     assert not any(i.startswith(("PRODUCT_SELECT:", "ADD_TO_CART:")) for i in plain.ids)
 
 
@@ -261,14 +263,14 @@ def test_ordinary_adds_are_unchanged(backend, store, clock, groq, flags):
 def test_flags_off_keeps_the_name_search(plain, groq):
     onboard(plain)
     plain.send(PHONE)
-    assert plain.keys[0] in ("search.results", "choose.product") and groq.calls == 0
+    assert plain.keys[0] == "recommend.intro" and groq.calls == 0  # applied in code, no model
 
 
 def test_recommend_flag_off_keeps_the_name_search(backend, store, clock, groq):
     chat = make_chat(backend, store, clock, groq, recommend=False)
     onboard(chat)
     chat.send(PHONE)
-    assert len(groq.extract_messages) == 0 and "recommend.intro" not in chat.keys
+    assert len(groq.extract_messages) == 0 and "recommend.intro" in chat.keys
 
 
 def test_the_log_line_has_constraint_names_and_no_customer_text(chat, groq, caplog):

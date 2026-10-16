@@ -130,6 +130,9 @@ FILLERS = (
     "this", "that", "one", "ones", "items", "item", "stuff", "things", "also", "now",
     "just", "do", "does", "did", "go", "through", "am", "be", "been", "has", "bro", "sir",
     "madam", "ok", "okay", "thanks", "thank", "yes", "what", "id", "boy",
+    # asking words that never name a product ("suggest ragi mix", "show me oats", "call ...")
+    "suggest", "suggestion", "suggestions", "recommend", "recommendation", "show", "tell",
+    "call",
     # romanized Telugu
     "naaku", "naku", "nenu", "maaku", "lo", "ki", "ku", "ni", "nundi", "nunchi", "tho",
     "konni", "koncham", "andi", "ga", "emi", "emiti", "undi", "unnayi", "anna", "cheyyi",

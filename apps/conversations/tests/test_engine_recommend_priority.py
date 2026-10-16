@@ -155,7 +155,14 @@ def test_when_the_flow_has_no_answer_the_rules_guess_is_kept(chat, groq):
     groq.classify_queue.append(cls("unknown"))
     chat.send("what'd you recommend for my evening snack")
     assert groq.calls == 2
-    assert chat.keys == ["search.none_neutral"]  # the rules' guess, answered without echoing text
+    # the model had no answer, but the code read a category word ("snack"): those picks, stated
+    assert chat.keys == [
+        "recommend.intro",
+        *["recommend.card"] * 4,
+        "product.unverified",
+        "cards.footer",
+    ]  # the exact reply: the stated picks, four cards and the fixed notes, nothing else
+    assert "Showing items from" in chat.message("recommend.intro").body
 
 
 def test_other_rules_results_keep_their_priority(chat, groq):
@@ -182,10 +189,9 @@ def test_new_cue_phrases_match():
 def test_no_match_reply_on_the_llm_path_never_repeats_customer_text(backend, store, clock, groq):
     chat = build(backend, store, clock, groq, recommend=False)  # LLM layer on, flow off
     onboard(chat)
-    chat.send(PHONE_B)  # rules/fuzzy turn this into a garbled search
-    assert chat.keys == ["search.none_neutral"]
-    assert chat.last[0].body == "I couldn't find that on the menu. You can browse instead."
-    assert "recommend" not in chat.last[0].body and '"' not in chat.last[0].body
+    chat.send(PHONE_B)  # a health phrase: answered in code, whatever the flags
+    assert chat.keys == ["recommend.medical", "menu.body"]
+    assert "weight" not in chat.last[0].body and '"' not in chat.last[0].body
 
 
 def test_the_old_quoted_reply_is_unchanged_without_the_llm_layer(backend, store, clock, groq):
@@ -194,18 +200,17 @@ def test_the_old_quoted_reply_is_unchanged_without_the_llm_layer(backend, store,
     chat.send("do you have zorkblat florp")
     assert chat.keys == ["search.none"] or chat.keys == ["fallback"]
     chat.send(PHONE_B)
-    assert chat.keys == ["search.none"]
-    # "weight" is never corrected into a quantity ("eight" -> 8)
+    assert chat.keys == ["recommend.medical", "menu.body"]  # code-only, and never an echo
+    # "weight" is never corrected into a quantity ("eight" -> 8), and never repeated back
     body = chat.last[0].body.lower()
-    assert "lose weight" in body
-    assert " eight" not in body
+    assert "weight" not in body and " eight" not in body
 
 
 def test_neutral_reply_is_translated(backend, store, clock, groq):
     chat = build(backend, store, clock, groq, recommend=False)
     onboard(chat, lang="hi")
     chat.send(PHONE_B)
-    assert chat.last[0].body == t("hi", "search.none_neutral")
+    assert chat.last[0].body == t("hi", "recommend.medical")
 
 
 # ---------------------------------------------------------------- goal -> sort
@@ -221,7 +226,8 @@ def test_gym_goal_sorts_by_protein_with_null_protein_last_and_says_so(chat, groq
     assert values[:2] == sorted([v for v in values if v is not None], reverse=True)
     assert values[-1] is None  # the product without a protein figure is last
     intro = next(m for m in chat.last if m.key == "recommend.intro")
-    assert intro.body.endswith("Sorted by protein, highest first.")
+    assert "Sorted by protein, highest first." in intro.body
+    assert intro.body.endswith("Showing items from Protein & Active Nutrition.")  # applied
     assert intro.body.startswith("Here are 3 options from the Ivar menu:")
 
 
@@ -238,14 +244,43 @@ def test_whole_menu_gym_request_returns_the_highest_protein_products(chat, groq,
     assert max(p.protein_g for p in top) > 20  # real high-protein products, not oats bowls
 
 
-def test_an_explicit_sort_from_the_model_is_not_overridden(chat, groq, backend):
+def test_a_goal_word_sort_read_in_code_is_not_replaced_by_the_models_sort(chat, groq, backend):
+    # The gym word is read in code (protein order). The model may ADD fields but may not change
+    # a value the code read, so its calories sort is ignored here.
     onboard(chat)
     groq.extract_queue.append(ext(sort="calories_asc"))
     chat.send(PHONE_A)
-    calories = {p.name: p.calories_kcal for p in backend._products.values()}
-    shown = [calories[n] for n in names(chat)]
-    assert shown == sorted(shown)  # ordered by calories, as the model asked
+    shown = [protein_of(backend, n) for n in names(chat)]
+    known = [v for v in shown if v is not None]
+    assert known == sorted(known, reverse=True)
+    assert any(m.key == "recommend.intro" and "protein" in m.body for m in chat.last)
+
+
+def test_the_models_explicit_sort_is_honoured_when_the_message_has_no_goal_word(
+    chat, groq, backend
+):
+    # No goal word, no price, no diet: the code read no sort, so the model's own sort stands.
+    onboard(chat)
+    groq.extract_queue.append(ext(category_slug="nuts-seeds-snacks", sort="calories_asc"))
+    chat.send("suggest zork florp")
+    by_name = {p.name: p for p in backend._products.values()}
+    shown = names(chat)
+    assert len(shown) >= 2 and all(by_name[n].category_id == "nuts-seeds-snacks" for n in shown)
+    calories = [by_name[n].calories_kcal for n in shown]
+    assert None not in calories and calories == sorted(calories)  # the model's sort, applied
     assert not any(m.key == "recommend.intro" and "protein" in m.body for m in chat.last)
+
+
+def test_a_goal_word_read_in_code_beats_the_models_sort_in_the_same_category(chat, groq, backend):
+    onboard(chat)
+    groq.extract_queue.append(ext(category_slug="nuts-seeds-snacks", sort="calories_asc"))
+    chat.send("suggest zork florp for the gym")
+    by_name = {p.name: p for p in backend._products.values()}
+    shown = names(chat)
+    assert len(shown) >= 2 and all(by_name[n].category_id == "nuts-seeds-snacks" for n in shown)
+    proteins = [by_name[n].protein_g for n in shown if by_name[n].protein_g is not None]
+    assert proteins == sorted(proteins, reverse=True)  # the code's protein sort, not calories
+    assert any(m.key == "recommend.intro" and "protein" in m.body for m in chat.last)
 
 
 def test_protein_with_a_category_stays_inside_that_category(chat, groq, backend):
@@ -322,9 +357,10 @@ def test_flags_off_keeps_the_previous_behaviour(backend, store, clock, groq):
     onboard(chat)
     groq.classify_queue.append(cls("unknown"))
     chat.send(PHONE_A)
-    assert chat.keys == ["fallback"] and groq.extract_messages == []  # classifier only
-    chat.send(PHONE_B)  # no medical shortcut, no cue priority: the old rules path
-    assert "recommend.medical" not in chat.keys
+    # the gym word is read in code: protein-sorted picks, no model call at all
+    assert chat.keys[0] == "recommend.intro" and groq.calls == 0
+    chat.send(PHONE_B)  # a health phrase is answered in code too, whatever the flags
+    assert "recommend.medical" in chat.keys
 
 
 # ---------------------------------------------------------------- logging
@@ -340,7 +376,8 @@ def test_one_info_line_per_message_with_the_stage_and_no_customer_text(chat, gro
         r.getMessage() for r in caplog.records if r.getMessage().startswith("engine: recommend")
     ]
     assert len(lines) == 2
-    assert "stage=cue kind=recommend constraints=['category_slug', 'sort']" in lines[0]
+    assert "stage=constraint kind=recommend constraints=['category_slug', 'sort']" in lines[0]
+    assert "code=['sort'] model=['category_slug']" in lines[0]  # who supplied what
     assert "sort=protein_desc sort_from_goal=True outcome=picks picks=3" in lines[0]
     assert "stage=cue_medical kind=medical" in lines[1] and "outcome=medical" in lines[1]
     for secret in ("tonight", "lose my body", "meals for the"):

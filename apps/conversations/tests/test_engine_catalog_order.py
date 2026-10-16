@@ -57,12 +57,13 @@ def test_flow_continues_into_address_collection(chat):
     assert "checkout.confirm" in chat.keys
 
 
-def test_unknown_product_is_excluded_and_named(chat, backend):
+def test_unknown_product_is_excluded_and_counted_never_echoed(chat, backend):
     onboard(chat)
     send_order(chat, item(OATS, 1), item("no-such-slug", 1))
     assert cart_of(chat, backend) == {OATS: 1}
     assert "order.excluded_unknown" in chat.keys
-    assert "no-such-slug" in chat.message("order.excluded_unknown").body
+    body = chat.message("order.excluded_unknown").body
+    assert "1 item(s)" in body and "no-such-slug" not in body  # a count, never a raw ID
 
 
 def test_out_of_stock_item_is_excluded_and_named(chat, backend):
@@ -93,7 +94,8 @@ def test_invalid_quantity_is_excluded(chat, backend, bad):
     onboard(chat)
     send_order(chat, item(OATS, 1), item(MIX, bad))
     assert cart_of(chat, backend) == {OATS: 1}
-    assert MIX in chat.message("order.excluded_quantity").body
+    body = chat.message("order.excluded_quantity").body
+    assert "1 item(s)" in body and MIX not in body  # a count, never a raw ID
 
 
 def test_whole_number_quantities_in_other_encodings_are_accepted(chat, backend):

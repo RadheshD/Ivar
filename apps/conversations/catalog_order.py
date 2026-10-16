@@ -112,7 +112,10 @@ def validate_order(backend: BackendPort, items: list[dict], cap: int) -> Validat
                 result.unreadable += 1
             continue
         except ProductUnavailable:
-            result.unavailable.append(product_id)
+            if SAFE_ID_RE.match(product_id):
+                result.unknown.append(product_id)  # shown as a count, never as the raw ID
+            else:
+                result.unreadable += 1
             continue
         in_stock = [v for v in product.variants if v.in_stock]
         if not product.in_stock or not in_stock:

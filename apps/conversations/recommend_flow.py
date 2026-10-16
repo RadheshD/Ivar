@@ -40,6 +40,10 @@ from .state import State
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_PICKS = 4
+# Labels the product records cannot support: disclosed in a fixed sentence, never applied.
+_LABEL_KEYS = (
+    "vegan", "gluten_free", "sugar_free", "other_label", "allergen_free", "ingredient", "allergen",
+)  # fmt: skip
 MAX_CANDIDATE_PAGES = 12  # 600 products; the port pages at 50
 
 
@@ -65,6 +69,8 @@ class RecommendFlow:
             replies = [self._text(c, "search.none_neutral"), *self._main_menu(c)]
         elif kind == "medical":
             replies = [self._text(c, "recommend.medical"), *self._main_menu(c)]
+        elif kind == "safety_info":
+            replies = self._reco_safety_info(c, req)
         elif kind == "diet_plan":
             replies = [*self._reco_safety_block(c, req), *self._reco_diet_plan(c, req)]
         elif kind == "product_question":
@@ -96,6 +102,33 @@ class RecommendFlow:
             body += "\n" + contact  # the owner's own text; the channel never invents numbers
         return [OutButtons(body, (self._menu_button(c),), key)]
 
+    def _reco_safety_info(self, c, req: RecommendRequest) -> list[Outbound]:
+        """Allergen / ingredient / suitability wording: ALWAYS a fixed reply, never yes or no and
+        never inferred from names, tags, diet type or images. A named product's card may follow."""
+        if req.health_context == "allergy":  # a stated allergy: the allergen line, then the menu
+            return [self._text(c, "safety.allergy"), *self._main_menu(c)]
+        if req.asked_fact == "suitability":
+            return [self._text(c, "safety.medical"), *self._main_menu(c)]
+        if req.asked_fact == "suitability_browse":
+            # "show healthy snacks": the disclaimer, then the category the words name (picks are
+            # restricted to it and nothing is called healthy); no category means the menu.
+            if req.category_slug or req.category_slugs:
+                return [self._text(c, "safety.medical"), *self._reco_products(c, req)]
+            return [self._text(c, "safety.medical"), *self._main_menu(c)]
+        replies: list[Outbound] = [self._text(c, "safety.ingredient_info")]
+        return [*replies, *(self._reco_named_card(c, req.product_mention) or self._main_menu(c))]
+
+    def _reco_named_card(self, c, mention: str | None) -> list[Outbound]:
+        """The card of the ONE product a phrase resolves to through the port, else nothing."""
+        if not mention:
+            return []
+        matches = self.backend.resolve_product_names(mention, limit=3)
+        exact = [m for m in matches if self._fold_name(m.name) == self._fold_name(mention)]
+        found = exact if len(exact) == 1 else matches
+        if len(found) != 1:
+            return []
+        return self._show_card(c, found[0].id, relist=False)
+
     def _emergency_check(self, c, inbound) -> list[Outbound] | None:
         """Keyword check on free text, in code, before the rules layer and any model call.
         On by default (``IVA_SAFETY_KEYWORDS_ENABLED``), independent of every LLM flag."""
@@ -122,11 +155,25 @@ class RecommendFlow:
         if req.unsupported == "popularity":
             replies.append(self._text(c, "popularity.unsupported"))
         food = has_food_constraints(req)
+        label = req.unsupported if req.unsupported in _LABEL_KEYS else None
+        if label and not food:  # the label is disclosed, never applied; then the category menu
+            what = t(c.lang, f"recommend.what.{label}")
+            return [
+                *replies,
+                self._text(c, "recommend.unsupported_menu", what=what),
+                *self._main_menu(c),
+            ]
         browse_only = health != "none" or meal_unsupported or req.unsupported == "popularity"
         if browse_only and not food:
             return [*replies, *self._main_menu(c)]
         if health == "none" and req.asks_advice:
             replies.append(self._text(c, "advice.disclaimer"))
+        elif not food and health == "none":
+            # Nothing to apply (no goal, constraint, category or diet word): the category menu,
+            # never picks in catalog order.
+            return [*replies, self._text(c, "recommend.browse"), *self._main_menu(c)]
+        if not food:
+            return [*replies, *self._main_menu(c)]
         return [*replies, *self._reco_products(c, req)]
 
     @staticmethod
@@ -154,7 +201,7 @@ class RecommendFlow:
             outcome = "price_unreadable"
         elif any(k and k.startswith("safety.") for k in keys) and not picks:
             outcome = "safety_block"
-        elif "recommend.unsupported" in keys:
+        elif "recommend.unsupported" in keys or "recommend.unsupported_menu" in keys:
             outcome = "cannot_ground"
         elif "recommend.none" in keys:
             outcome = "no_match"
@@ -209,8 +256,15 @@ class RecommendFlow:
         ``apps.ai.meal_time_map`` narrows to those categories (and to the customer's own
         category if they named one); an empty map changes nothing."""
         slugs = mapped_categories(req.meal_time)
+        wanted = list(req.category_slugs) or ([req.category_slug] if req.category_slug else [])
         if not slugs:
-            return self._reco_candidates(req.category_slug)
+            if len(wanted) > 1:
+                seen_any: dict[str, ProductSummary] = {}
+                for slug in wanted:
+                    for product in self._reco_candidates(slug):
+                        seen_any.setdefault(product.id, product)
+                return list(seen_any.values())
+            return self._reco_candidates(wanted[0] if wanted else None)
         if req.category_slug:
             slugs = [req.category_slug] if req.category_slug in slugs else []
         seen: dict[str, ProductSummary] = {}
@@ -268,9 +322,8 @@ class RecommendFlow:
         if req.sort == "protein_desc" and not sel.unsupported_sort:
             # States the ordering only, never a benefit.
             intro += "\n" + t(c.lang, "recommend.sorted_protein")
-        limit = self._price_line(c, req)
-        if limit:
-            intro += "\n" + limit  # the bounds were applied in code (select_products)
+        for line in self._reco_applied_lines(c, req):
+            intro += "\n" + line  # what was applied, in code, from the message
         cards = [self._reco_card(c, p, self._reco_facts_line(c, p)) for p in sel.picks]
         replies: list[Outbound] = [*notes]
         carousel = self._reco_carousel(c, sel.picks, intro, cards)
@@ -284,6 +337,23 @@ class RecommendFlow:
             replies.append(self._text(c, "product.unverified"))
         replies.append(self._cards_footer(c, False))
         return replies
+
+    def _reco_applied_lines(self, c, req: RecommendRequest) -> list[str]:
+        """Fixed sentences saying which constraints were applied (price bounds, a diet word, the
+        categories a category word named). Nothing is applied silently."""
+        lines: list[str] = []
+        limit = self._price_line(c, req)
+        if limit:
+            lines.append(limit)
+        if req.diet_type:
+            lines.append(t(c.lang, "diet.applied", diet=self._reco_diet_label(c, req.diet_type)))
+        wanted = list(req.category_slugs) or ([req.category_slug] if req.category_slug else [])
+        if wanted:
+            names = {cat.id: cat.name for cat in self._all_categories()}
+            shown = ", ".join(names[s] for s in wanted if s in names)
+            if shown:
+                lines.append(t(c.lang, "category.applied", category=shown))
+        return lines
 
     def _price_line(self, c, req: RecommendRequest) -> str | None:
         """States the price bounds that were applied; nothing else."""
@@ -343,7 +413,7 @@ class RecommendFlow:
                     self._reply(c, Intent.CATEGORY_SELECT, group_id), t(c.lang, "btn.categories")
                 )
             )
-        body = t(c.lang, "recommend.none")
+        body = "\n".join([t(c.lang, "recommend.none"), *self._reco_applied_lines(c, req)])
         return [OutButtons(body, tuple(buttons), "recommend.none")]
 
     def _reco_group_id(self, category_slug: str | None) -> str | None:

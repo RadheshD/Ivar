@@ -179,8 +179,8 @@ def test_classifier_path_with_another_intent_makes_no_extraction_call(chat, groq
 def test_cue_with_request_type_other_falls_through_to_the_classifier(chat, groq):
     onboard(chat)
     ask(chat, groq, CUE, ext(request_type="other"), cls("unknown"))
-    assert groq.calls == 2
-    assert chat.keys == ["fallback"]
+    assert groq.calls == 2  # the extraction and the classifier
+    assert chat.keys == ["recommend.browse", "menu.body"]  # a recommendation cue: the menu
 
 
 def test_each_call_counts_toward_the_daily_cap(backend, store, clock, groq):
@@ -197,7 +197,7 @@ def test_flag_off_means_zero_recommendation_calls_and_part_1_behaviour(backend, 
     groq.classify_queue.append(cls("unknown"))
     chat.send(CUE)
     assert len(groq.extract_messages) == 0 and len(groq.classify_messages) == 1
-    assert chat.keys == ["fallback"]
+    assert chat.keys == ["recommend.browse", "menu.body"]  # nothing understood: the menu
 
 
 # ---------------------------------------------------------------- selection in code
@@ -252,13 +252,14 @@ def test_out_of_stock_products_are_excluded(chat, groq, backend):
 def test_invalid_constraints_from_the_model_are_dropped(chat, groq, backend):
     onboard(chat)
     ask(chat, groq, CUE, ext(category_slug="not-a-category", diet_type="vegan", max_price=-5))
-    assert len(picks(chat)) == 4  # no filter applied: first four in catalog order
+    # every constraint was invalid, so nothing is applied: the category menu, not catalog order
+    assert picks(chat) == [] and chat.keys == ["recommend.browse", "menu.body"]
 
 
 def test_max_picks_setting_is_respected(chat, groq, settings):
     settings.IVA_LLM_RECOMMEND_MAX_PICKS = 2
     onboard(chat)
-    ask(chat, groq, CUE, ext())
+    ask(chat, groq, CUE, ext(category_slug="protein-bowls"))
     assert len(picks(chat)) == 2
     assert t("en", "recommend.intro", n=2) == "Here are 2 options from the Ivar menu:"
 
@@ -309,11 +310,9 @@ def test_unverified_nutrition_is_labelled(chat, groq):
 def test_unsupported_dietary_label_is_disclosed(chat, groq):
     onboard(chat)
     ask(chat, groq, CUE, ext(unsupported_constraint="gluten_free"))
-    assert chat.last[0].key == "recommend.unsupported"
-    assert chat.last[0].body == (
-        "I can't filter by gluten-free yet, so these are the closest options from the menu."
-    )
-    assert picks(chat)
+    assert chat.last[0].key == "recommend.unsupported_menu"
+    assert chat.last[0].body == "I can't filter by gluten-free yet. Here is our menu by category."
+    assert not picks(chat) and chat.keys[-1] == "menu.body"  # disclosed, then the category menu
 
 
 def test_sort_the_records_cannot_support_is_disclosed_not_faked(chat, groq):
@@ -332,6 +331,7 @@ def test_no_match_offers_menu_and_categories(chat, groq):
     assert chat.keys == ["recommend.none"]
     assert chat.last[0].body == (
         "I couldn't find anything on the menu that matches that. Would you like to browse instead?"
+        "\nShowing items up to \u20b91.\nShowing items from Protein Bowls."  # what was applied
     )
     assert chat.ids == ["CATEGORY_SELECT", "CATEGORY_SELECT:fresh"]
 
@@ -463,7 +463,7 @@ def test_injection_cannot_make_the_bot_say_or_choose_anything(chat, groq):
 def test_failures_fall_back_to_the_category_browse_reply(chat, groq, failure):
     onboard(chat)
     ask(chat, groq, CUE, failure)
-    assert chat.keys == ["menu.body"] and groq.calls == 1
+    assert chat.keys == ["recommend.browse", "menu.body"] and groq.calls == 1
 
 
 def test_recommendations_never_change_the_cart(chat, groq):
@@ -477,7 +477,7 @@ def test_recommendations_never_change_the_cart(chat, groq):
 
 def test_the_cards_use_the_normal_add_to_cart_buttons(chat, groq):
     onboard(chat)
-    ask(chat, groq, CUE, ext())
+    ask(chat, groq, CUE, ext(category_slug="protein-bowls"))
     assert any(i.startswith("ACT:addcard:") for i in chat.ids)
     chat.tap(next(i for i in chat.ids if i.startswith("ACT:addcard:")))
     assert len(cart_of(chat)) == 1  # added by the ordinary flow, after an explicit tap

@@ -24,7 +24,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from apps.ai import classifier as cls
-from apps.ai import constraints
+from apps.ai import code_router, constraints, rules
 from apps.ai.intents import Intent, IntentResult, LLMOutcome, Stage
 from apps.ai.llm_fallback import ExtractionResult, FallbackResult, LLMFallback
 from apps.ai.llm_guard import LLMGuard
@@ -52,9 +52,10 @@ RECOMMEND_PRICE_GOLDEN = GOLDEN.with_name("recommend_price_golden.json")
 RECOMMEND_RANGE_GOLDEN = GOLDEN.with_name("recommend_range_golden.json")
 RECOMMEND_ADVICE_GOLDEN = GOLDEN.with_name("recommend_advice_golden.json")
 RECOMMEND_DETERMINISM_GOLDEN = GOLDEN.with_name("recommend_determinism_golden.json")
+RECOMMEND_FIXES_GOLDEN = GOLDEN.with_name("recommend_fixes_golden.json")
 SET_NAMES = (
     "intents", "recommend", "recommend_goals", "recommend_health", "recommend_price",
-    "recommend_range", "recommend_advice", "recommend_determinism",
+    "recommend_range", "recommend_advice", "recommend_determinism", "recommend_fixes",
 )  # fmt: skip
 PRICE_SETS = (
     "recommend_price",
@@ -121,6 +122,8 @@ def load_entries(set_name: str) -> list[dict]:
         return load_recommend_golden(RECOMMEND_ADVICE_GOLDEN)
     if set_name == "recommend_determinism":
         return load_recommend_golden(RECOMMEND_DETERMINISM_GOLDEN)
+    if set_name == "recommend_fixes":
+        return load_recommend_golden(RECOMMEND_FIXES_GOLDEN)
     return load_recommend_golden() if set_name == "recommend" else load_golden()
 
 
@@ -395,6 +398,19 @@ class Harness:
                 return ranged
         return tokenize(constraints.prepare(text))
 
+    def _code_route(self, text: str) -> IntentResult | None:
+        """The live pipeline's code-only route (safety wording, facts, labels, plan requests)."""
+        tokens = self._tokens(text)
+        if not tokens:
+            return None
+        vocab = rules.Vocabulary.build(
+            [e.name for e in self.catalog], [name for _slug, name in self.categories]
+        )
+        routed = code_router.route(text, tokens, vocab, None, constraints.parse(tokens))
+        if routed is None:
+            return None
+        return IntentPipeline._with_categories(routed, tokens, self.categories)
+
     # -- one entry -----------------------------------------------------------------
 
     def evaluate(
@@ -535,6 +551,10 @@ class Harness:
             result = IntentResult(Intent.FALLBACK, 0.0, Stage.NONE)
             record["route"] = "safety"
             emergency_text = entry["text"]
+        elif (routed := self._code_route(entry["text"])) is not None:
+            # Code-only: answered before the rules and before any model call.
+            result = routed
+            record["route"] = "code"
         elif entry.get("rules_priority"):
             # A cue plus a real product name: the live pipeline keeps the rules' answer.
             result = self.pipeline.understand(
@@ -543,7 +563,7 @@ class Harness:
                 category_names=[name for _slug, name in self.categories],
             )
             record["route"] = "rules"
-        elif record["set"] in (*PRICE_SETS, "recommend_advice") and (
+        elif record["set"] in (*PRICE_SETS, "recommend_advice", "recommend_fixes") and (
             cons := constraints.parse(self._tokens(entry["text"]))
         ):
             # Stated constraints: the live pipeline's constraint route (the extraction, with
@@ -558,9 +578,14 @@ class Harness:
             result = IntentPipeline._medical_result(None)
             record["route"] = "cue_medical"
         else:
-            result = IntentPipeline._from_extraction(
-                ExtractionResult(outcome, extraction), None, text=entry["text"], route="cue"
+            tokens = self._tokens(entry["text"])
+            code_req = IntentPipeline._code_request(
+                entry["text"], tokens, constraints.parse(tokens), self.categories
             )
+            result = IntentPipeline.cue_answer(
+                ExtractionResult(outcome, extraction), None, entry["text"], tokens,
+                self.categories, constraints.parse(tokens), code_req,
+            )  # fmt: skip
             record["route"] = "cue"
         if result is None:  # request_type "other": the live pipeline hands over to the classifier
             result = IntentResult(Intent.FALLBACK, 0.0, Stage.NONE)

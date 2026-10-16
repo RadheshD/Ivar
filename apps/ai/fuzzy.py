@@ -12,6 +12,7 @@ import difflib
 from django.conf import settings
 
 from .aliases import NUMBER_WORDS
+from .code_cues import FUZZY_STOPLIST
 from .rules import KNOWN_WORDS, Vocabulary
 from .text import normalize
 
@@ -39,6 +40,7 @@ def correct_tokens(tokens: list[str], vocab: Vocabulary) -> tuple[list[str], boo
             and token.isascii()
             and token.isalpha()
             and not vocab.knows(token)
+            and token not in FUZZY_STOPLIST
         ):
             close = difflib.get_close_matches(token, targets, n=1, cutoff=WORD_CUTOFF)
             if close:

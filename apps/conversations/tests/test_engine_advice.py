@@ -79,18 +79,21 @@ def test_the_gym_question_shows_the_advice_line_then_protein_sorted_picks(chat, 
     assert cart_of(chat) == {}
 
 
-def test_the_gym_question_with_the_flags_off_is_the_old_plain_search(plain):
+def test_the_gym_question_with_the_flags_off_gives_the_same_code_only_answer(plain):
+    # Goal words are read in code: with no model at all the gym question still gets the advice
+    # line and protein-sorted picks (it used to be a plain name search).
     onboard(plain)
     plain.send(GYM)
-    assert plain.keys[0] in ("search.none", "search.none_neutral")
-    assert "recommend.intro" not in plain.keys and cart_of(plain) == {}
+    assert plain.keys[:2] == ["advice.disclaimer", "recommend.intro"]
+    assert "Sorted by protein, highest first." in plain.message("recommend.intro").body
+    assert cart_of(plain) == {}
 
 
 def test_recommend_flag_off_keeps_the_old_route(backend, store, clock, groq):
     chat = make_chat(backend, store, clock, groq, recommend=False)
     onboard(chat)
     chat.send(GYM)
-    assert groq.extract_messages == [] and "recommend.intro" not in chat.keys
+    assert groq.extract_messages == [] and "recommend.intro" in chat.keys  # code-only picks
 
 
 @pytest.mark.parametrize(
@@ -184,7 +187,10 @@ def test_the_models_flag_alone_never_shows_the_line_on_any_route(backend, store,
 def test_a_real_advice_cue_with_the_flag_shows_the_line(chat, groq, text, route):
     onboard(chat)
     ask(chat, groq, text, cls("RECOMMEND") if route == "classifier" else None, asks_advice=True)
-    assert chat.keys[:2] == ["advice.disclaimer", "recommend.intro"]
+    # With a price limit the advice line is followed by picks; with nothing to apply it is
+    # followed by the category menu (never picks in catalog order).
+    second = "recommend.intro" if route == "constraint" else "menu.body"
+    assert chat.keys[:2] == ["advice.disclaimer", second]
 
 
 def test_an_advice_cue_without_the_models_flag_shows_nothing(chat, groq):

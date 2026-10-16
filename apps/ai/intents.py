@@ -62,6 +62,7 @@ class Stage(StrEnum):
     RULES = "rules"
     FUZZY = "fuzzy"
     LLM = "llm"
+    SAFETY = "safety"  # the safety net (keywords, or the health-only model check)
     NONE = "none"
 
 
@@ -162,6 +163,8 @@ class RecommendRequest:
 
     kind: str
     category_slug: str | None = None
+    # Several Port categories a built-in category word names ("snacks"); picks come from any.
+    category_slugs: tuple[str, ...] = ()
     diet_type: str | None = None
     max_price: Decimal | None = None
     min_price: Decimal | None = None
@@ -197,6 +200,8 @@ class IntentResult:
     # Set only for Stage.LLM results; never carries more than slugs, mentions, quantities.
     llm_items: tuple[LLMItem, ...] = ()
     request: RecommendRequest | None = None  # recommendation flow only
+    # Fixed notes the engine puts before its reply (template keys, never customer text).
+    notes: tuple[str, ...] = ()
 
     def to_dict(self) -> dict:
         data = asdict(self)

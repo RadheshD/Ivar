@@ -163,6 +163,14 @@ def test_table_covers_every_intent_in_every_style():
     assert covered == expected
 
 
+@pytest.fixture(autouse=True)
+def _rules_stage_only(settings):
+    """These cases pin the rules stage in each language style. The code-only recommendation routes
+    (goal words, price limits, safety wording ...) answer some of the same words first by default
+    and are covered by their own tests, so they are switched off for this module."""
+    settings.IVA_CODE_CONSTRAINTS_ENABLED = False
+
+
 @pytest.mark.parametrize("case", CASES, ids=[_id(c) for c in CASES])
 def test_intent_in_language_style(case):
     intent, style, text, entities = case

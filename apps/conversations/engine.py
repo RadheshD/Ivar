@@ -27,7 +27,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.ai import llm_state
-from apps.ai.classifier import CatalogEntry
+from apps.ai.classifier import CatalogEntry, redact
 from apps.ai.intents import Entities, Intent, IntentResult, LLMItem, Stage, build_reply_id
 from apps.ai.llm_fallback import LLMContext
 from apps.ai.pipeline import IntentPipeline, pipeline_from_settings
@@ -77,13 +77,25 @@ from .messages import (
     GREETING_WORDS,
     HELP_WORDS,
     LANGUAGE_WORDS,
+    NO_WORDS,
     ORDER_STATUS_WORDS,
+    YES_WORDS,
     t,
 )
 from .recommend_flow import RecommendFlow
 from .state import Session, SessionStore, SessionStoreError, State, store_from_settings
 
 logger = logging.getLogger(__name__)
+
+_REDACTED_RE = re.compile(r"\[(?:link|email|upi|id|number)\]")
+
+
+def scrub_query(query: str | None) -> str:
+    """A search phrase without phone numbers, long digit runs, links, emails or handles: they
+    never reach the Port, a stored listing, a log or a reply."""
+    cleaned = _REDACTED_RE.sub(" ", redact(query or "", limit=1000))
+    return " ".join(cleaned.split())
+
 
 ACT = "ACT:"  # engine-owned reply IDs (diet, paging, addresses, confirm); never sent to apps.ai
 PAGE_SIZE = MAX_ROWS - 1  # one row stays free for "More…"
@@ -183,6 +195,7 @@ class ConversationEngine(RecommendFlow):
         self._clock = clock
         self._hints_cache: tuple[float, tuple[str, ...], tuple[str, ...]] | None = None
         self._llm_catalog_cache: tuple[float, tuple[CatalogEntry, ...]] | None = None
+        self._code_categories_cache: tuple[float, tuple[tuple[str, str], ...]] | None = None
 
     @property
     def backend(self) -> BackendPort:
@@ -335,6 +348,17 @@ class ConversationEngine(RecommendFlow):
         self._hints_cache = (now + self._hints_ttl, tuple(products), categories)
         return self._hints_cache[1], self._hints_cache[2]
 
+    def _code_categories(self) -> tuple[tuple[str, str], ...]:
+        """The Port's ``(slug, name)`` categories for the code-only routes (cached briefly):
+        a category word in a message restricts picks whether or not a model is available."""
+        now = self._clock()
+        if self._code_categories_cache and now < self._code_categories_cache[0]:
+            return self._code_categories_cache[1]
+        cats = self._llm_categories()
+        if cats:
+            self._code_categories_cache = (now + self._hints_ttl, cats)
+        return cats
+
     def _understand(self, inbound: Inbound, llm_context: LLMContext | None = None) -> IntentResult:
         products, categories = self._hints()
         text = inbound.text if inbound.text is not None else inbound.reply_title
@@ -344,6 +368,7 @@ class ConversationEngine(RecommendFlow):
             product_names=products,
             category_names=categories,
             llm_context=llm_context,
+            code_categories=self._code_categories(),
         )
 
     # States in which free text may go to the LLM fallback. Everything else (language
@@ -381,13 +406,18 @@ class ConversationEngine(RecommendFlow):
         """The context that lets the pipeline call the LLM, or ``None`` when it must not:
         feature off, a button/list tap, an unfinished flow state, or a pending question."""
         if not getattr(self.pipeline, "llm_fallback_enabled", False):
-            return None
+            return None  # the feature is off: nothing to explain
         if inbound.reply_id or not (inbound.text or "").strip():
+            return None  # a tap or an empty message never goes to the model
+        if c.session.state not in self._LLM_STATES:
+            logger.info("engine: llm not used reason=state")
             return None
-        if c.session.state not in self._LLM_STATES or c.session.pending is not None:
+        if c.session.pending is not None:
+            logger.info("engine: llm not used reason=pending_question")
             return None
         catalog = self._llm_catalog()
         if not catalog:
+            logger.info("engine: llm not used reason=no_catalog")
             return None
         return LLMContext(
             catalog, c.customer.id, PORT_MAX_QUANTITY, categories=self._llm_categories()
@@ -428,9 +458,28 @@ class ConversationEngine(RecommendFlow):
                 return command
             return self._address_typed(c, text)
 
+        if text and c.session.pending is None and state in self._LLM_STATES and self._yes_no(text):
+            return self._stale_answer(
+                c
+            )  # a Yes/No with nothing waiting: never a guess, never a model
+
         result = self._understand(inbound, self._llm_context(c, inbound))
         logger.info("engine: intent=%s stage=%s state=%s", result.intent, result.stage, state)
-        return self._intent(c, result)
+        replies = self._intent(c, result)
+        if result.notes:
+            replies = [*(self._text(c, key) for key in result.notes), *replies]
+        return replies
+
+    @staticmethod
+    def _yes_no(text: str) -> bool:
+        folded = normalize(text)
+        return folded in YES_WORDS or folded in NO_WORDS
+
+    def _stale_answer(self, c: _Turn) -> list[Outbound]:
+        """A Yes/No (button or typed) for a question that is no longer waiting: one neutral
+        reply, nothing changes, no model call."""
+        key = "stale.expired"
+        return [OutButtons(t(c.lang, key), (self._menu_button(c),), key)]
 
     def _intent(self, c: _Turn, r: IntentResult) -> list[Outbound]:
         s = c.session
@@ -703,6 +752,9 @@ class ConversationEngine(RecommendFlow):
         elif name == "llmyes":
             return self._llm_apply(c)
         elif name == "llmno":
+            if not s.pending or s.pending.get("kind") != "llm_confirm":
+                s.pending = None
+                return self._stale_answer(c)  # an answered, expired or superseded question
             s.pending = None
             llm_state.stat("cart_confirm.declined")
             buttons = (self._button(c, Intent.VIEW_CART.value, "btn.cart"), self._menu_button(c))
@@ -766,11 +818,12 @@ class ConversationEngine(RecommendFlow):
         return self._show_category(c, category, 0)
 
     def _find_category(self, c: _Turn, query: str) -> list[Outbound]:
+        query = scrub_query(query)
         categories = self._all_categories()
         exact = [cat for cat in categories if _fold(cat.name) == _fold(query)]
         matches = exact or [cat for cat in categories if _words_match(query, cat.name)]
         if not matches:
-            body = t(c.lang, "category.none", query=query)
+            body = t(c.lang, "category.none")
             return [OutButtons(body, (self._menu_button(c),), "category.none")]
         if len(matches) == 1:
             return self._open_category(c, matches[0].id)
@@ -778,7 +831,7 @@ class ConversationEngine(RecommendFlow):
             Row(self._reply(c, Intent.CATEGORY_SELECT, cat.id), cat.name)
             for cat in matches[:MAX_ROWS]
         )
-        body = t(c.lang, "category.choose", query=query)
+        body = t(c.lang, "category.choose")
         return [OutList(body, t(c.lang, "list.choose"), rows, "category.choose")]
 
     def _show_group(self, c: _Turn, group: Category, offset: int) -> list[Outbound]:
@@ -1122,6 +1175,9 @@ class ConversationEngine(RecommendFlow):
         # A quantity to place (typed or already pending) needs an exact product, so the
         # disambiguation step picks a product for the quantity; a plain search gets a
         # compact results list whose rows open product cards.
+        query = scrub_query(
+            query
+        )  # no phone numbers, links or handles in a search or a stored listing
         disambiguating = adding or quantity is not None
         mode = "list" if disambiguating else "results"
         page_size = PAGE_SIZE if disambiguating else MAX_ROWS
@@ -1134,12 +1190,12 @@ class ConversationEngine(RecommendFlow):
                 s.state = State.CATEGORY
                 s.listing = {**listing, "all": False, "offset": 0, "ids": []}
                 return [self._diet_notice(c, "diet.hidden_all", query=query)]
-            # With the LLM layer on, the query can be a processed fragment of a whole
-            # sentence, so the reply never repeats it.
+            # The query can be a processed fragment of a whole sentence (and customer words are
+            # never repeated back), so the reply is the same neutral sentence either way.
             if getattr(self.pipeline, "llm_fallback_enabled", False):
                 body = t(c.lang, "search.none_neutral")
                 return [OutButtons(body, (self._menu_button(c),), "search.none_neutral")]
-            body = t(c.lang, "search.none", query=query)
+            body = t(c.lang, "search.none")
             return [OutButtons(body, (self._menu_button(c),), "search.none")]
         if found.total == 1 and disambiguating:
             replies = self._select_product(c, found.page[0].id, quantity)
@@ -1153,7 +1209,7 @@ class ConversationEngine(RecommendFlow):
         else:
             if disambiguating:
                 c.session.pending = {"kind": "choose", "quantity": quantity}
-            body = t(c.lang, "choose.product", query=query)
+            body = t(c.lang, "choose.product")
             replies = self._render_product_page(
                 c, found.page, found.total, 0, listing, body, "choose.product"
             )
@@ -1173,7 +1229,6 @@ class ConversationEngine(RecommendFlow):
         body = t(
             c.lang,
             "search.results",
-            query=found.query,
             start=offset + 1,
             end=offset + len(found.page),
             total=found.total,
@@ -1485,7 +1540,7 @@ class ConversationEngine(RecommendFlow):
     def _llm_apply(self, c: _Turn) -> list[Outbound]:
         pending, c.session.pending = c.session.pending, None
         if not pending or pending.get("kind") != "llm_confirm":
-            return self._main_menu(c)  # stale tap: nothing is waiting
+            return self._stale_answer(c)  # a stale tap: nothing is waiting
         llm_state.stat("cart_confirm.accepted")
         action, cid, skipped = pending["action"], c.customer.id, 0
         cart = None
@@ -1569,12 +1624,12 @@ class ConversationEngine(RecommendFlow):
     def _order_notes(self, c: _Turn, r: ValidatedOrder) -> list[Outbound]:
         notes: list[Outbound] = []
         if r.unknown:
-            notes.append(self._text(c, "order.excluded_unknown", names="; ".join(r.unknown)))
+            notes.append(self._text(c, "order.excluded_unknown", count=len(r.unknown)))
         if r.unavailable:
             names = "; ".join(r.unavailable)
             notes.append(self._text(c, "order.excluded_unavailable", names=names))
         if r.bad_quantity:
-            notes.append(self._text(c, "order.excluded_quantity", names="; ".join(r.bad_quantity)))
+            notes.append(self._text(c, "order.excluded_quantity", count=len(r.bad_quantity)))
         if r.unreadable:
             notes.append(self._text(c, "order.excluded_unreadable", count=r.unreadable))
         if r.clamped:
@@ -1695,7 +1750,7 @@ class ConversationEngine(RecommendFlow):
         else:
             candidates = lines
         if not candidates:
-            missing = self._text(c, "cart.not_found", query=query or "")
+            missing = self._text(c, "cart.not_found")
             return [missing, *self._cart_messages(c, cart)]
         specific = bool(query or choice_index) or (action == "update" and quantity is not None)
         if len(candidates) == 1 and specific:

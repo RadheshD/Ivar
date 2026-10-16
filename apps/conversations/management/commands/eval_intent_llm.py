@@ -117,6 +117,10 @@ class Command(BaseCommand):
         set_name = golden_set or (prior["set"] if prior else "intents")
         if prior and prior["set"] != set_name:
             raise CommandError(f"--from-results is a '{prior['set']}' file, not '{set_name}'.")
+        if set_name == "recommend_fixes" and not dry_run:
+            raise CommandError(
+                "recommend_fixes checks behaviour read in code: it runs with --dry-run only."
+            )
         key = getattr(settings, "GROQ_API_KEY", "") or ""
         if not key and not dry_run:
             raise CommandError("GROQ_API_KEY is not set in the environment.")

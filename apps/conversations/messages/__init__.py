@@ -20,6 +20,8 @@ GREETING_WORDS = _words("GREETING_WORDS")
 CART_WORDS = _words("CART_WORDS")
 ORDER_STATUS_WORDS = _words("ORDER_STATUS_WORDS")
 HELP_WORDS = _words("HELP_WORDS")
+YES_WORDS = _words("YES_WORDS")
+NO_WORDS = _words("NO_WORDS")
 LANGUAGE_WORDS = _words("LANGUAGE_WORDS")
 DIET_WORDS = {
     diet: frozenset(normalize(w) for module in (en, te, hi) for w in module.DIET_WORDS[diet])

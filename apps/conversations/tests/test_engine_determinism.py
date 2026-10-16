@@ -190,7 +190,7 @@ def test_fractional_forms_are_read_whatever_the_model_says(
 def test_a_fractional_price_is_never_a_quantity_flags_off(plain, text):
     onboard(plain)
     plain.send(text)
-    assert cart_of(plain) == {} and "recommend.intro" not in plain.keys
+    assert cart_of(plain) == {} and "recommend.intro" in plain.keys  # code-only: limit applied
     assert not {"qty.invalid", "qty.ask", "product.ask_qty"} & set(plain.keys)
 
 
@@ -210,7 +210,7 @@ def test_a_price_cue_with_no_picks_is_the_no_match_reply_never_the_generic_clari
 def test_flags_off_keeps_the_old_route(plain):
     onboard(plain)
     plain.send(PHONE)
-    assert "recommend.intro" not in plain.keys
+    assert "recommend.intro" in plain.keys  # flags off: the same code-only answer
 
 
 def test_the_recommend_line_says_which_constraints_came_from_code(chat, groq, caplog):

@@ -515,6 +515,27 @@ def overlay(request: RecommendRequest, cons: Constraints) -> RecommendRequest:
     )
 
 
+def category_slugs_for_terms(tokens: Sequence[str], categories) -> tuple[str, ...]:
+    """Slugs of the Port categories whose name holds a built-in category word that is in the
+    message ("snacks" -> every category with "snacks" in its name). A bare "protein" or any
+    other product word never selects a category."""
+    from . import aliases
+
+    words = set(tokens)
+    found: list[str] = []
+    for variants in aliases.CATEGORY_TERMS.values():
+        used = [normalize(v) for v in variants if all(p in words for p in normalize(v).split())]
+        if not used:
+            continue
+        for slug, name in categories:
+            name_words = {w.rstrip("s") for w in normalize(name).split()}
+            if slug not in found and any(
+                all(p.rstrip("s") in name_words for p in term.split()) for term in used
+            ):
+                found.append(slug)
+    return tuple(found)
+
+
 def category_slug_in(tokens: Sequence[str], categories) -> str | None:
     """Slug of the longest category (``(slug, name)`` pairs) whose every word is in the
     message, or ``None``."""

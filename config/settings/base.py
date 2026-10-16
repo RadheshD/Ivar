@@ -194,6 +194,10 @@ IVA_LLM_RECOMMEND_MAX_PICKS = env.int("IVA_LLM_RECOMMEND_MAX_PICKS", default=4)
 # before any LLM call, independent of every IVA_LLM_* flag. ON by default. The contact text is
 # shown after the fixed emergency sentence; it is the owner's own wording (never invented).
 IVA_SAFETY_KEYWORDS_ENABLED = env.bool("IVA_SAFETY_KEYWORDS_ENABLED", default=True)
+# Code-only routes (price limits, diet words, the protein sort, goal words, product-fact and label
+# questions, plan requests): read and applied in code, independent of every IVA_LLM_* setting, the
+# Groq key and the runtime kill switch. ON by default; off only to compare against the old routing.
+IVA_CODE_CONSTRAINTS_ENABLED = env.bool("IVA_CODE_CONSTRAINTS_ENABLED", default=True)
 IVA_EMERGENCY_CONTACT_TEXT = env.str("IVA_EMERGENCY_CONTACT_TEXT", default="")
 # A cart change guessed by the fuzzy (typo) stage asks Yes/No first.
 IVA_FUZZY_CART_CONFIRM = env.bool("IVA_FUZZY_CART_CONFIRM", default=True)

@@ -162,6 +162,23 @@ def goal_sort(text: str, table: dict | None = None) -> str | None:
     return None
 
 
+_BARE_PROTEIN_WORDS = frozenset({"protein", "प्रोटीन", "ప్రోటీన్"})
+
+
+def goal_only_sort(text: str) -> str | None:
+    """Like ``goal_sort`` but the bare word "protein" is not a goal here: it names products
+    and categories ("protein bowls"), so on its own it must keep meaning a name search."""
+    tokens = _norm_words(text)
+    joined = " ".join(tokens)
+    for sort, styles in GOAL_SORT.items():
+        for _review, words in styles.values():
+            if any(
+                _phrase_matches(tokens, joined, w) for w in words if w not in _BARE_PROTEIN_WORDS
+            ):
+                return sort
+    return None
+
+
 def apply_goal_sort(request: RecommendRequest, text: str | None) -> RecommendRequest:
     """Fill in a missing sort from the goal table. Runs after validation and never
     overrides a sort the model returned."""
@@ -483,6 +500,7 @@ def has_food_constraints(request: RecommendRequest) -> bool:
     Health wording never counts."""
     return bool(
         request.category_slug
+        or request.category_slugs
         or request.diet_type
         or request.max_price is not None
         or request.min_price is not None
@@ -524,8 +542,9 @@ def constraint_keys(request: RecommendRequest) -> list[str]:
         "sort",
         "unsupported",
         "meal_time",
+        "category_slugs",
     )
-    return [n for n in names if getattr(request, n) is not None]
+    return [n for n in names if getattr(request, n) not in (None, ())]
 
 
 __all__ = [

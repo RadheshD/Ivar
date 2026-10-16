@@ -114,10 +114,10 @@
    "product_mention": null,
    "asked_fact": null,
    "ambiguous": false,
-   "action_class": "READ_ONLY_REPLY",
+   "action_class": "SAFETY_REPLY",
    "reply_keys": [
-    "advice.disclaimer",
-    "recommend.intro"
+    "safety.medical",
+    "menu.body"
    ],
    "cue": true,
    "tags": [
@@ -333,7 +333,7 @@
    "action_class": "READ_ONLY_REPLY",
    "reply_keys": [
     "advice.disclaimer",
-    "recommend.intro"
+    "menu.body"
    ],
    "cue": true,
    "tags": [
@@ -424,7 +424,7 @@
    "action_class": "READ_ONLY_REPLY",
    "reply_keys": [
     "advice.disclaimer",
-    "recommend.intro"
+    "menu.body"
    ],
    "cue": true,
    "tags": [
@@ -515,7 +515,7 @@
    "action_class": "READ_ONLY_REPLY",
    "reply_keys": [
     "advice.disclaimer",
-    "recommend.intro"
+    "menu.body"
    ],
    "cue": true,
    "tags": [
@@ -606,7 +606,7 @@
    "action_class": "READ_ONLY_REPLY",
    "reply_keys": [
     "advice.disclaimer",
-    "recommend.intro"
+    "menu.body"
    ],
    "cue": true,
    "tags": [

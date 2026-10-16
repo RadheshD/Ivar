@@ -132,7 +132,7 @@ def test_no_cancels_without_touching_the_cart(llm_chat, fake):
     assert cart_of(llm_chat) == {}
     llm_chat.tap("ACT:llmyes")  # a stale Yes after the No does nothing
     assert cart_of(llm_chat) == {}
-    assert llm_chat.keys == ["menu.body"]
+    assert llm_chat.keys == ["stale.expired"]  # one neutral reply for an answered question
 
 
 def test_typing_something_else_instead_of_answering_cancels_the_request(llm_chat, fake):

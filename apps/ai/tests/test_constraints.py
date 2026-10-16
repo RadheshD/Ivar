@@ -80,7 +80,10 @@ def test_the_number_is_marked_as_a_price(text):
     assert any(any(ch.isdecimal() for ch in tokens[i]) for i in c.price_indices), text
 
 
-def test_the_price_number_is_not_left_in_the_search_words():
+def test_the_price_number_is_not_left_in_the_search_words(settings):
+    # This pins the rules stage's entity extraction, so the code-only recommendation routes (which
+    # answer these messages first by default) are switched off here.
+    settings.IVA_CODE_CONSTRAINTS_ENABLED = False
     q = understand("Something high protein under 300").entities.product_query
     assert q == "something high protein under"
     assert understand("snacks under ₹20").entities.product_query == "snacks under"

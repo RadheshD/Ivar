@@ -2,8 +2,8 @@
 
 Everything here lives in ``django.core.cache`` (Redis when ``REDIS_URL`` is set, so every
 process sees it; per-process memory otherwise). It switches off ONLY the model calls: the
-deterministic code paths (price limits, diet words, sorting, emergency and medical keyword
-replies, cart guards) never read this module.
+deterministic code paths (price limits, diet words, sorting, goal words, safety and allergen
+replies, product facts, cart guards) never read this module.
 
 Reads that fail are treated as "model off" (fail closed): skipping an optional model call
 is harmless, an uncounted one costs money. Metric writes never raise.
@@ -147,7 +147,7 @@ def stat_names() -> list[str]:
     names += [f"failed.{r}" for r in FAILURE_REASONS]
     names += [f"rejected.{r}" for r in REJECT_REASONS]
     names += [f"cart_confirm.{e}" for e in CONFIRM_EVENTS]
-    names += [f"reco.{t}" for t in sorted(REQUEST_TYPES)]
+    names += [f"reco.{t}" for t in sorted({*REQUEST_TYPES, "safety_info", "price_unreadable"})]
     return names
 
 

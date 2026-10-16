@@ -1,0 +1,1240 @@
+{
+ "_note": "Synthetic golden set for the code-only fixes (eval_intent_llm --set recommend_fixes, dry-run only). Every entry is answered in CODE: allergen / ingredient / suitability wording, product facts, labels, plan requests, injury and self-harm wording, price limits, diet words and goal words. 'reply_keys' pins the fixed templates the real engine sends. Every non-English entry needs native-speaker review. No real customer text; the wording is invented.",
+ "entries": [
+  {
+   "id": "fx001",
+   "language": "en",
+   "text": "is the oats bowl nut free?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx002",
+   "language": "en",
+   "text": "what are the ingredients in the oats bowl?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx003",
+   "language": "en",
+   "text": "does the paneer bowl have gluten?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx004",
+   "language": "en",
+   "text": "I have a nut allergy, suggest something",
+   "request_type": "other",
+   "health_context": "allergy",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.allergy",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx005",
+   "language": "en",
+   "text": "is it good for kids?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.medical",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx006",
+   "language": "en",
+   "text": "how much protein in the classic oats bowl?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.q_protein",
+    "product.unverified",
+    "product.card"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx007",
+   "language": "en",
+   "text": "how many calories in the ragi upma?",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.q_kcal",
+    "product.unverified",
+    "product.card"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx008",
+   "language": "en",
+   "text": "price of ragi mix",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.q_price",
+    "product.card"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx009",
+   "language": "en",
+   "text": "vegan options",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.unsupported_menu",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx010",
+   "language": "en",
+   "text": "gluten free snacks",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.unsupported",
+    "recommend.intro"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx011",
+   "language": "en",
+   "text": "best seller",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "popularity.unsupported",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx012",
+   "language": "en",
+   "text": "7 day diet plan",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "PLANNER_HANDOFF",
+   "reply_keys": [
+    "recommend.diet_plan",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx013",
+   "language": "en",
+   "text": "I'm cutting my hand",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx014",
+   "language": "en",
+   "text": "my hand is bleeding a lot",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.emergency"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx015",
+   "language": "en",
+   "text": "I want to hurt myself",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx016",
+   "language": "en",
+   "text": "Suggest me some good meals for the gym tonight",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false,
+   "sort_accept": [
+    null,
+    "protein_desc"
+   ],
+   "cue": true
+  },
+  {
+   "id": "fx017",
+   "language": "en",
+   "text": "something high protein under 300",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 300,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx018",
+   "language": "en",
+   "text": "veg snacks under 150",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": "veg",
+   "max_price": 150,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.none"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx019",
+   "language": "en",
+   "text": "suggest ragi mix",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "product.card"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false,
+   "rules_priority": true
+  },
+  {
+   "id": "fx020",
+   "language": "en",
+   "text": "what do you recommend",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.browse",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false,
+   "cue": true
+  },
+  {
+   "id": "fx021",
+   "language": "hinglish",
+   "text": "dhai sau ke andar protein",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 250,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx022",
+   "language": "en",
+   "text": "protein under two hundred",
+   "request_type": "recommend",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": 200,
+   "min_price": null,
+   "sort": "protein_desc",
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.intro"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": false
+  },
+  {
+   "id": "fx023",
+   "language": "hi",
+   "text": "इस प्रोडक्ट की सामग्री क्या है",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx024",
+   "language": "hi",
+   "text": "मुझे peanut allergy है",
+   "request_type": "other",
+   "health_context": "allergy",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.allergy",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx025",
+   "language": "hi",
+   "text": "क्या यह बच्चों के लिए सुरक्षित है",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.medical",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx026",
+   "language": "hi",
+   "text": "7 दिन का डाइट प्लान",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "PLANNER_HANDOFF",
+   "reply_keys": [
+    "recommend.diet_plan",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx027",
+   "language": "hi",
+   "text": "खून बह रहा है",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.emergency"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx028",
+   "language": "hi",
+   "text": "मैं खुद को नुकसान पहुँचाना चाहता हूँ",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx029",
+   "language": "hi",
+   "text": "वीगन विकल्प",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "READ_ONLY_REPLY",
+   "reply_keys": [
+    "recommend.unsupported_menu",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx030",
+   "language": "te",
+   "text": "ఈ ఉత్పత్తి పదార్థాలు ఏమిటి",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx031",
+   "language": "te",
+   "text": "నాకు peanut allergy ఉంది",
+   "request_type": "other",
+   "health_context": "allergy",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.allergy",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx032",
+   "language": "te",
+   "text": "ఇది పిల్లలకు సురక్షితమా",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.medical",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx033",
+   "language": "te",
+   "text": "డైట్ ప్లాన్ కావాలి",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "PLANNER_HANDOFF",
+   "reply_keys": [
+    "recommend.diet_plan",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx034",
+   "language": "te",
+   "text": "రక్తం కారుతోంది",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.emergency"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx035",
+   "language": "te",
+   "text": "నేను చనిపోవాలని అనుకుంటున్నాను",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx036",
+   "language": "hinglish",
+   "text": "oats bowl ke ingredients kya hain",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx037",
+   "language": "hinglish",
+   "text": "mujhe nut allergy hai",
+   "request_type": "other",
+   "health_context": "allergy",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.allergy",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx038",
+   "language": "hinglish",
+   "text": "kya ye bachon ke liye healthy hai",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.medical",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx039",
+   "language": "hinglish",
+   "text": "weekly diet plan chahiye",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "PLANNER_HANDOFF",
+   "reply_keys": [
+    "recommend.diet_plan",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx040",
+   "language": "hinglish",
+   "text": "khoon beh raha hai",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.emergency"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx041",
+   "language": "hinglish",
+   "text": "mujhe marna chahta hoon",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx042",
+   "language": "tenglish",
+   "text": "oats bowl ingredients emi",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.ingredient_info",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx043",
+   "language": "tenglish",
+   "text": "naaku nut allergy undi",
+   "request_type": "other",
+   "health_context": "allergy",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.allergy",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx044",
+   "language": "tenglish",
+   "text": "idi pillalaku safe aa",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.medical",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx045",
+   "language": "tenglish",
+   "text": "7 days diet plan kavali",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "PLANNER_HANDOFF",
+   "reply_keys": [
+    "recommend.diet_plan",
+    "menu.body"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  },
+  {
+   "id": "fx046",
+   "language": "tenglish",
+   "text": "nenu chanipovali anukuntunna",
+   "request_type": "other",
+   "health_context": "none",
+   "asks_advice": false,
+   "meal_time": null,
+   "category_slug": null,
+   "diet_type": null,
+   "max_price": null,
+   "min_price": null,
+   "sort": null,
+   "unsupported": null,
+   "product_mention": null,
+   "asked_fact": null,
+   "ambiguous": false,
+   "action_class": "SAFETY_REPLY",
+   "reply_keys": [
+    "safety.self_harm"
+   ],
+   "tags": [
+    "fixes"
+   ],
+   "needs_native_review": true
+  }
+ ]
+}

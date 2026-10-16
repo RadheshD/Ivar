@@ -192,7 +192,7 @@
    "reply_keys": [
     "safety.medical",
     "safety.see_doctor",
-    "menu.body"
+    "recommend.intro"
    ],
    "tags": [
     "pregnancy"
@@ -424,10 +424,10 @@
    "product_mention": null,
    "asked_fact": null,
    "ambiguous": false,
-   "action_class": "READ_ONLY_REPLY",
+   "action_class": "SAFETY_REPLY",
    "reply_keys": [
-    "recommend.unsupported",
-    "recommend.intro"
+    "safety.ingredient_info",
+    "menu.body"
    ],
    "tags": [
     "ingredient"
@@ -698,7 +698,7 @@
    "ambiguous": false,
    "action_class": "READ_ONLY_REPLY",
    "reply_keys": [
-    "choose.product"
+    "product.card"
    ],
    "tags": [
     "cue_with_product",

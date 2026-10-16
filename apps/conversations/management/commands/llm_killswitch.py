@@ -2,10 +2,9 @@
 
 The flag lives in the shared cache, so with Redis configured every process (web, worker)
 sees it on its next call. It stops ONLY model calls: price limits, diet words, sorting,
-emergency and medical keyword replies and cart guards are code and keep working (the
-allergen caution currently needs the model: known gap). Prints no secrets. Without
-REDIS_URL the flag is per-process and this command cannot reach a running server (it
-says so).
+emergency, self-harm, allergen, ingredient and medical replies, product-fact, label and plan
+answers, and cart guards are code and keep working. Prints no secrets. Without REDIS_URL the
+flag is per-process and this command cannot reach a running server (it says so).
 """
 
 from django.conf import settings

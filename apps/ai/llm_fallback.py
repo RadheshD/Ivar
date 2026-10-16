@@ -116,10 +116,12 @@ class LLMFallback:
         prepared = prepare_input(text, limit if limit > 0 else DEFAULT_MAX_INPUT_CHARS)
         if prepared is None:
             llm_state.stat("skipped.input_limit")
+            logger.info("llm: skipped reason=input_limit")
             return None
         message = redact(prepared, limit=HARD_INPUT_CEILING)
         if not has_request_left(message):
             llm_state.stat("skipped.redaction_empty")
+            logger.info("llm: skipped reason=redaction_empty")
             return None
         return message
 
@@ -259,6 +261,36 @@ class LLMFallback:
             reply.completion_tokens if reply else "-",
         )
         return ExtractionResult(outcome, extraction)
+
+    def health_check(self, text: str, ctx: LLMContext) -> bool:
+        """ONE health-only look at a message nothing else understood: True when the model reports
+        an emergency. The same input limits, redaction, guard, token budget and kill switch as
+        every other call apply; any failure or skip is False. Logs names and counts only."""
+        if not hasattr(self.classifier, "extract"):
+            return False
+        message = self._prepare(text)
+        if message is None:
+            return False
+        chars = len(RECOMMEND_PROMPT) + 400 + _SCHEMA_CHARS + len(message)
+        chars += sum(len(slug) + len(name) + 1 for slug, name in ctx.categories[:100])
+        permit = self._admit(ctx, chars, "health ")
+        if permit is None:
+            return False
+        reply, _outcome, error_kind, limited = self._invoke(
+            self.classifier.extract, message, categories=ctx.categories, timeout=self.timeout
+        )
+        extraction, rejected_kind = None, None
+        if reply is not None:
+            try:
+                extraction = parse_extraction(
+                    reply.text, category_slugs=frozenset(slug for slug, _ in ctx.categories)
+                )
+            except ClassifierInvalid as exc:
+                rejected_kind = exc.kind
+        self._settle(permit, reply, error_kind, limited, extraction is not None, rejected_kind, 0)
+        emergency = bool(extraction and extraction.request.health_context == "emergency")
+        logger.info("llm: health check emergency=%s error=%s", emergency, error_kind or "-")
+        return emergency
 
     def judge_extraction(self, extraction: Extraction) -> LLMOutcome:
         """Outcome category of a validated extraction (also used by the eval harness)."""

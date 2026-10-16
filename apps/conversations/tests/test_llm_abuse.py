@@ -274,11 +274,6 @@ def test_with_the_kill_switch_on_every_code_only_path_behaves_as_with_the_model(
     assert cart_a == cart_b
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="KNOWN GAP (owner decision needed): the allergen caution line is produced only when "
-    "the model flags an allergy; with the model off the customer gets the plain menu.",
-)
 def test_an_allergy_statement_gets_the_allergen_line_without_the_model():
     groq = FakeGroq()
     chat = build(groq)
@@ -534,7 +529,9 @@ def test_a_429_storm_makes_one_call_across_all_customers_then_waits():
         chat.send(NOISE)
         assert chat.keys == ["fallback"]
     assert groq.calls == 1
-    assert llm_state.stats_today()["skipped.paused"] == len(chats) - 1
+    # each later customer is skipped twice (the classifier and the health-only check); the first
+    # customer's own health-only check is skipped once more
+    assert llm_state.stats_today()["skipped.paused"] == 2 * len(chats) - 1
 
 
 def test_with_the_shared_store_down_the_model_is_skipped_and_replies_stay_code_only(monkeypatch):
