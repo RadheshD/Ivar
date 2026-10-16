@@ -713,6 +713,35 @@ names: what code read vs what only the model supplied). A diet_plan reply keeps 
 (with the code-read bounds applied). Eval: `eval_intent_llm --set recommend_determinism [--dry-run]`
 (16 entries; also checks the shown items are sorted by protein).
 
+### Code-only routes (2026-10-12)
+
+Order of decisions for a free-text message (each stage ends the turn when it answers):
+
+1. Emergency check in `ConversationEngine` (`safety_keywords.py`: emergency, injury and self-harm
+   phrasings, plus a starter set per language). Self-harm wording uses the template `safety.self_harm`,
+   which has the same text as `safety.emergency` until a qualified reviewer supplies wording. Contact text
+   comes only from `IVA_EMERGENCY_CONTACT_TEXT`; the code never invents a number.
+2. Plan hand-off message, then button / list replies.
+3. `apps/ai/code_router.py` (data in `code_cues.py`), ahead of the rules and fuzzy stages:
+   multi-day plan requests (the planner hand-off; a day count is never a quantity); allergen, ingredient
+   and suitability wording (fixed replies, never yes or no, never inferred from names, tags, diet type or
+   images; a named product's card may follow); product-fact questions (answered from the Backend Port
+   record only, with the "nutrition not verified" note while the record says so); unsupported labels and
+   popularity (disclosed, never applied silently).
+4. Rules and fuzzy, with the constraint route (price, diet, sort, goal words, a category word) run in code
+   whether or not a model exists; the fuzzy stage has a stoplist so common words are never corrected into
+   product words. A recommendation cue with nothing to apply gets the category menu, never catalog-order picks.
+5. The model, when available, may ADD fields; it cannot change or remove what the code read, and an
+   "ambiguous" reply cannot override it. A message that still ends unanswered gets ONE health-only model
+   check through the same guard, budget and kill switch.
+
+Nothing the customer typed is repeated back: search and category replies are neutral, and phone numbers,
+links, emails and handles are removed from search phrases and never reach a reply, a stored listing or a log.
+Messages of one reply are sent in order: any text or buttons message that follows a carousel or image card
+waits for that message's status (the "nutrition not verified" note used to overtake the carousel).
+A Yes/No for a question that is no longer waiting gets one neutral reply and never calls the model.
+`IVA_CODE_CONSTRAINTS_ENABLED` (default on) switches the code-only routes as a group.
+
 ## 8. Checkout and payment flow
 
 ```text
@@ -763,7 +792,7 @@ mechanism that answers each. Mechanisms only; the operational values live in `.e
 | Unconfirmed cart changes | A model-derived cart change is only ever offered as a Yes/No question; nothing changes without Yes. |
 | Provider outage or bad output | Never retried on the customer path; a shared circuit breaker; a rolling failure/rejection rate trips a runtime kill switch automatically. |
 | Key leakage | The key is only in the request header; errors carry fixed categories; the object representation hides it; settings dumps mask it; a test checks exceptions, logs and tracebacks. |
-| Safety and ordering rules | Emergency and medical keyword replies, price limits, diet words, sort and cart guards are handled in code independently of the model. The allergen caution currently needs the model (known gap, tracked by an xfail test). The kill switch and every budget disable only model calls. |
+| Safety and ordering rules | Emergency, injury and self-harm keyword replies; allergen, ingredient and suitability replies; product-fact, label, popularity and plan answers; price limits, diet words, sort and goal words; and cart guards are read and answered in code, independently of every `IVA_LLM_*` setting, the Groq key, the circuit breaker and the runtime kill switch (tests run each with the flags off, the model on, the kill switch on and the breaker open). The model may only ADD a field the code did not read. The keyword data and the model cannot catch every phrasing, and ALL safety wording is a default that must be reviewed (see `HANDOVER.md` section 14). |
 
 Residual risks are listed in the operations runbook (`HANDOVER.md` §12) and the session notes.
 

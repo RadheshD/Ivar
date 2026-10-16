@@ -287,6 +287,7 @@ each was introduced per `CLAUDE.md`/`ARCHITECTURE.md`.
 | `IVA_LLM_TRIP_*` | Auto-trip of the kill switch: window, minimum calls, failure and rejection rates, cool-off | defaults in `.env.example` | LLM guards |
 | `IVA_LLM_RECOMMEND_ENABLED` | Grounded product recommendations (needs `IVA_LLM_ENABLED`) | `false` (default) or `true` | Recommendations (2026-10-06) |
 | `IVA_LLM_RECOMMEND_MAX_PICKS` | Products shown per recommendation | integer, default `4` | Recommendations (2026-10-06) |
+| `IVA_CODE_CONSTRAINTS_ENABLED` | Code-only routes (price, diet, sort, goal words, product facts, labels, plan requests) | `true` (default); independent of every `IVA_LLM_*` setting, the Groq key and the kill switch | Code-only fixes (2026-10-12) |
 | `IVA_SAFETY_KEYWORDS_ENABLED` | Emergency keyword check on free text (independent of the LLM flags) | `true` (default); only turn off to test | Health-aware recommendations (2026-10-07) |
 | `IVA_EMERGENCY_CONTACT_TEXT` | Text shown after the fixed emergency sentence (for example the local emergency number) | owner-supplied wording, or empty; the channel never invents numbers | Health-aware recommendations (2026-10-07) |
 | `IVA_FUZZY_CART_CONFIRM` | A cart change guessed by the typo-correction stage asks Yes/No first | `true` (default) | Fuzzy guard (2026-10-07) |
@@ -508,9 +509,9 @@ run as part of this work:**
 
 ## 12. Operations runbook: the model (Groq) layer
 
-The model is optional. Prices, diet words, sorting, emergency and medical keyword replies and cart
-guards are code and keep working when it is off. The allergen caution currently needs the model
-(known gap, tracked by an xfail test). These commands need `REDIS_URL` set so the flag is shared by every
+The model is optional. Price limits, diet words, sorting, goal words, emergency, self-harm, allergen,
+ingredient and medical replies, product-fact, label and plan answers, and cart guards are code and keep
+working when it is off (tests cover the flags off, the kill switch on and the breaker open). These commands need `REDIS_URL` set so the flag is shared by every
 process (without it the flag is per-process and the command says so).
 
 **Switch the model off (and on) without a restart**
@@ -568,3 +569,20 @@ the plain per-command code; `apps/ai/tests/test_llm_guard_scripts.py` runs the s
 and checks the command count on Redis.
 
 **Per-minute window.** `IVA_LLM_CUSTOMER_PER_MINUTE` is counted per customer in FIXED wall-clock minutes (`int(timestamp // 60)`), not a sliding 60 seconds: at most the limit inside each minute, so up to twice the limit across a minute boundary, and refused attempts still increment the per-customer counter (only the global counters skip refused calls); tests that assert a call count therefore pin the clock inside one minute with `LLMGuard(now=...)`, and a separate test pins the boundary behaviour.
+
+## 14. Safety wording and data that MUST be reviewed before real customers use it
+
+All safety wording (emergency, self-harm, allergen, ingredient, medical and suitability) is a DEFAULT and
+UNREVIEWED. It MUST be reviewed by a qualified person before real customers use it, and all non-English
+text by native speakers. Nothing here has been reviewed.
+
+- Reply templates: `safety.emergency`, `safety.self_harm` (same text as emergency until a reviewer supplies
+  wording), `safety.allergy`, `safety.ingredient_info`, `safety.medical`, `safety.see_doctor`,
+  `advice.disclaimer`, `recommend.medical`, `recommend.unsupported`, `popularity.unsupported`,
+  `recommend.browse`, `stale.expired`, `numbers.ignored` (Telugu and Hindi included).
+- Keyword and cue data: `safety_keywords.py` (emergency, injury, self-harm), `code_cues.py` (allergen,
+  ingredient, suitability, facts, labels, plans), `recommend_cues.py`. Keywords and the model cannot catch
+  every phrasing; coverage is incomplete in every language, and the non-English lists are starter sets.
+- `IVA_EMERGENCY_CONTACT_TEXT` is the owner's own wording; leave it empty if unsure (default empty).
+- Golden data `apps/ai/golden/recommend_fixes_golden.json` (non-English entries marked
+  `needs_native_review`): `python manage.py eval_intent_llm --set recommend_fixes --dry-run` (no model).

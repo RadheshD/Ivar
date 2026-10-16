@@ -437,6 +437,8 @@ Rules now enforced by the repo-root `conftest.py`:
 
 **2026-10-12 Groq abuse and cost hardening:** guards around MODEL CALLS only (code-only replies never depend on them). New `apps/ai/llm_state.py` (shared cache state: runtime kill switch, provider pause, counters, rolling window) and a reworked `apps/ai/llm_guard.py` (token reserve-then-settle budgets, per-customer daily cap and budget share, shared Redis circuit breaker, auto-trip). Input is normalised and length-limited before redaction (over-length is skipped, never cut); redaction covers more identifier patterns; any model word that can be shown back is sanitised (`classifier.safe_echo`). Commands `llm_killswitch` and `llm_stats`. A 429 pauses all callers for the advised period. Found and fixed by the new parity test: the goal-word sort was applied only when the model returned an extraction, so it is now also applied in the no-model branch (`pipeline.constraint_answer`). Root `conftest.py` clears the in-memory cache between tests. New tests: `test_llm_input.py`, `test_llm_budget.py`, `test_llm_abuse.py`. No live Groq call was made. Operations runbook: `HANDOVER.md` section 12; threat model: `ARCHITECTURE.md` section 10.
 
+**2026-10-12 code-only fixes after manual testing:** new `apps/ai/code_router.py` + `code_cues.py` (plan, allergen / ingredient / suitability, product facts, labels, popularity), self-harm and injury keyword data, `IVA_CODE_CONSTRAINTS_ENABLED`; price limits, diet words, sort, goal words and a category word are applied in code with the LLM flags off, the kill switch on or the breaker open; no customer text is echoed in a reply or log; fuzzy stoplist; stale / typed Yes-No reply; delivery holds text after a carousel; wording changes. The allergen gap noted earlier is closed (tests in `test_code_only_fixes.py` run every behaviour with the flags off, the model on, the kill switch on and the breaker open). ALL safety wording is still default and unreviewed (see `HANDOVER.md` section 14).
+
 ## Hard rules
 
 1. **No admin panel of any kind.** No `django.contrib.admin`, no `/admin/` route, no `admin.py`, no dashboard or admin UI.
@@ -527,6 +529,7 @@ python manage.py reset_dev_data --confirm    # actually deletes; refuses outside
 
 ## Things that need human review before launch
 
+- ALL safety wording (emergency, self-harm, allergen, ingredient, medical): default and unreviewed; a qualified person must review it (HANDOVER.md section 14).
 - Telugu and Hindi reply text (native-speaker review).
 - Catalog data in the Fake Backend fixture is unverified and never used in production.
 - Real prices, pack sizes, stock, allergens and bowl nutrition come from the backend team.
