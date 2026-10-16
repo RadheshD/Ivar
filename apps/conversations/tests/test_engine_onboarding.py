@@ -22,7 +22,10 @@ def test_new_customer_onboarding(chat, backend, lang):
     assert chat.ids == ["LANGUAGE_SELECT:en", "LANGUAGE_SELECT:te", "LANGUAGE_SELECT:hi"]
 
     chat.tap(f"LANGUAGE_SELECT:{lang}")
-    assert chat.keys == ["menu.body"]  # IVA_PLANNER_URL unset in tests: straight to menu
+    assert chat.keys == [
+        "language.changed",
+        "menu.body",
+    ]  # IVA_PLANNER_URL unset in tests: straight to menu
 
     customer = backend.get_or_create_customer(WA_ID)
     assert customer.onboarding_complete is True
@@ -59,7 +62,7 @@ def test_welcome_cta_when_planner_configured(chat, settings, lang):
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi")
     chat.tap(f"LANGUAGE_SELECT:{lang}")
-    assert chat.keys == ["welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
 
     cta = chat.message("welcome.planner_intro")
     assert isinstance(cta, OutCTA)
@@ -98,7 +101,7 @@ def test_profile_name_is_saved_and_not_repeated_in_the_planner_message(chat, bac
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi", profile_name="Ravi Kumar")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
     assert "Ravi Kumar" not in chat.body  # no duplicate greeting after language selection
     assert backend.get_or_create_customer(WA_ID).name == "Ravi Kumar"
 
@@ -107,7 +110,7 @@ def test_missing_profile_name_greets_without_a_name(chat, backend, settings):
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
     assert backend.get_or_create_customer(WA_ID).name is None
 
 
@@ -126,7 +129,7 @@ def test_existing_name_is_never_overwritten(chat, backend):
 def test_unset_planner_url_skips_straight_to_main_menu(chat, backend):
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["menu.body"]
+    assert chat.keys == ["language.changed", "menu.body"]
     assert backend.get_or_create_customer(WA_ID).onboarding_complete is True
 
 
@@ -134,7 +137,7 @@ def test_invalid_planner_url_skips_straight_to_main_menu(chat, settings):
     settings.IVA_PLANNER_URL = "http://not-https.example"
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["menu.body"]
+    assert chat.keys == ["language.changed", "menu.body"]
 
 
 def test_planner_row_in_main_menu_when_configured(chat, settings):

@@ -39,7 +39,9 @@ MESSAGES = {
     "btn.browse_menu": "Browse menu",
     # ------------------------------------------------------------------ menu & general
     "greeting": "Hi {name}! 👋",
+    "greeting_noname": "Hi! 👋",
     "welcome_back": "Welcome back, {name}!",
+    "welcome_back_noname": "Welcome back!",
     "menu.body": 'What would you like? You can also type, e.g. "show snacks" or "my order".',
     "menu.button": "Menu",
     "menu.cart": "View cart",
@@ -53,6 +55,7 @@ MESSAGES = {
         '"where is my order". Type "menu" anytime.'
     ),
     "fallback": "Sorry, I didn't understand that.",
+    "fallback.hint": 'Try "show snacks" or type "menu".',
     "list.choose": "Choose",
     "list.more": "More…",
     "list.more_desc": "Show the next items",
@@ -134,6 +137,7 @@ MESSAGES = {
     "checkout.confirm": "Please confirm your order.",
     "checkout.deliver_to": "Deliver to: {address}",
     "checkout.created": "Order {order} placed. Total {total}.",
+    "checkout.thanks": "Thank you for your order!",
     "checkout.payment_line": "Payment: {status}.",
     "checkout.pay_link": "Pay here: {url}",
     "checkout.no_link": "The payment link isn't available yet. Please check payment status shortly.",

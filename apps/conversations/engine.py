@@ -266,9 +266,9 @@ class ConversationEngine(RecommendFlow):
         menu = (Button(Intent.CATEGORY_SELECT.value, t(lang, "btn.menu")),)
         if isinstance(exc, BackendUnavailable):
             logger.warning("engine: backend unavailable")
-            return [OutText(t(lang, "error.unavailable"), "error.unavailable")]
+            return [OutButtons(t(lang, "error.unavailable"), menu, "error.unavailable")]
         if isinstance(exc, InvalidQuantity):
-            return [OutText(t(lang, "qty.invalid"), "qty.invalid")]
+            return [OutButtons(t(lang, "qty.invalid"), menu, "qty.invalid")]
         if isinstance(exc, ProductUnavailable):
             return [OutButtons(t(lang, "error.out_of_stock"), menu, "error.out_of_stock")]
         if isinstance(exc, CartEmpty):
@@ -289,6 +289,14 @@ class ConversationEngine(RecommendFlow):
 
     def _text(self, c: _Turn | None, key: str, **values) -> OutText:
         return OutText(t(c.lang if c else None, key, **values), key)
+
+    def _named_text(self, c: _Turn, key: str) -> OutText:
+        """``key`` with the customer's name, or ``key_noname`` (no stray space or comma) when the
+        name is missing."""
+        name = (c.customer.name or "").strip()
+        if not name:
+            return self._text(c, f"{key}_noname")
+        return self._text(c, key, name=name)
 
     def _button(self, c: _Turn, reply_id: str, key: str) -> Button:
         return Button(reply_id, t(c.lang, key))
@@ -493,11 +501,10 @@ class ConversationEngine(RecommendFlow):
             return self._recommendation(c, r.request)
 
         if c.fresh and intent in (Intent.GREETING, Intent.FALLBACK, Intent.CLARIFY):
-            welcome = self._text(c, "welcome_back", name=c.customer.name or "")
-            return [welcome, *self._main_menu(c)]
+            return [self._named_text(c, "welcome_back"), *self._main_menu(c)]
 
         if intent is Intent.GREETING:
-            return [self._text(c, "greeting", name=c.customer.name or ""), *self._main_menu(c)]
+            return [self._named_text(c, "greeting"), *self._main_menu(c)]
         if intent is Intent.LANGUAGE_SELECT:
             if e.language_choice:
                 c.customer = self.backend.update_profile(c.customer.id, language=e.language_choice)
@@ -628,6 +635,8 @@ class ConversationEngine(RecommendFlow):
                 s.state = State.LANGUAGE
                 return [self._language_prompt(c, greet=greet)]
             c.customer = self.backend.update_profile(c.customer.id, language=choice)
+            # the first choice is confirmed, in the chosen language, before the welcome
+            return [self._text(c, "language.changed"), *self._finish_onboarding(c)]
         return self._finish_onboarding(c)
 
     def _diet_prompt(self, c: _Turn) -> list[Outbound]:
@@ -793,7 +802,8 @@ class ConversationEngine(RecommendFlow):
 
     def _fallback(self, c: _Turn) -> OutButtons:
         buttons = (self._menu_button(c), self._button(c, Intent.HELP.value, "btn.help"))
-        return OutButtons(t(c.lang, "fallback"), buttons, "fallback")
+        body = f"{t(c.lang, 'fallback')}\n{t(c.lang, 'fallback.hint')}"
+        return OutButtons(body, buttons, "fallback")
 
     def _ask_product(self, c: _Turn) -> list[Outbound]:
         return [OutButtons(t(c.lang, "ask.product"), (self._menu_button(c),), "ask.product")]
@@ -1872,6 +1882,7 @@ class ConversationEngine(RecommendFlow):
                 order=result.order_number,
                 total=self._money(result.total, result.currency),
             ),
+            t(c.lang, "checkout.thanks"),
             t(
                 c.lang,
                 "checkout.payment_line",
@@ -1957,13 +1968,15 @@ class ConversationEngine(RecommendFlow):
             lines.append(t(c.lang, "order.tracking", tracking=view.tracking_id))
         else:
             lines.append(t(c.lang, "order.tracking_na"))
-        buttons = (
-            Button(
-                self._reply(c, Intent.PAYMENT_STATUS, view.order_number),
-                t(c.lang, "btn.payment_status"),
-            ),
-            self._menu_button(c),
-        )
+        buttons = (self._menu_button(c),)
+        if view.payment_status != PaymentStatus.PAID:  # a paid order has no payment to check
+            buttons = (
+                Button(
+                    self._reply(c, Intent.PAYMENT_STATUS, view.order_number),
+                    t(c.lang, "btn.payment_status"),
+                ),
+                *buttons,
+            )
         return [OutButtons("\n".join(lines), buttons, "order.status")]
 
     def _payment_status(self, c: _Turn, order_number: str | None) -> list[Outbound]:
