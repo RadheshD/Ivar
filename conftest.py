@@ -1,5 +1,6 @@
 import contextlib
 import ssl
+from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -108,6 +109,27 @@ def _fresh_backend():
     reset_backend()
     yield
     reset_backend()
+
+
+@pytest.fixture(autouse=True)
+def _never_use_the_dev_state_file(monkeypatch, tmp_path_factory):
+    """Fail loudly when a test would load or save a Fake Backend state file outside pytest's
+    own temp directory (the developer's saved state must never be read or written)."""
+    from apps.conversations import fake_backend
+
+    real = fake_backend._state_file_from_settings
+    safe_root = Path(tmp_path_factory.getbasetemp()).resolve()
+
+    def guarded() -> str:
+        path = real()
+        if path and safe_root not in Path(path).resolve().parents:
+            raise AssertionError(
+                "IVA_FAKE_BACKEND_STATE_FILE points outside the pytest temp directory: the "
+                "test suite must never use the dev Fake Backend state file"
+            )
+        return path
+
+    monkeypatch.setattr(fake_backend, "_state_file_from_settings", guarded)
 
 
 @pytest.fixture(scope="session")
