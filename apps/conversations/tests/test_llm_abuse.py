@@ -12,6 +12,7 @@ import json
 import logging
 import traceback
 from collections import deque
+from datetime import UTC, datetime
 
 import pytest
 from django.views.debug import SafeExceptionReporterFilter
@@ -308,16 +309,74 @@ def test_cart_changes_derived_by_the_model_still_need_a_yes():
 # ---------------------------------------------------------------- abuse: bounded calls
 
 
-def test_one_customer_flooding_makes_a_bounded_number_of_calls_and_changes_no_cart():
-    groq = FakeGroq()
-    guard = LLMGuard(daily_cap=1000, per_customer_per_minute=3, breaker=SharedBreaker(50, 60))
-    chat = build(groq, guard)
-    for _ in range(60):
+class FrozenClock:
+    """The guard's time source (``LLMGuard(now=...)``): a fixed, settable instant."""
+
+    def __init__(self, at: datetime) -> None:
+        self.at = at
+
+    def __call__(self) -> datetime:
+        return self.at
+
+
+# The guard counts per customer in FIXED wall-clock minutes (``int(timestamp // 60)``), so a test
+# must pin the clock inside one minute or a run that straddles a minute boundary can see two
+# windows. 12:00:30 is mid-minute.
+MID_MINUTE = datetime(2026, 1, 1, 12, 0, 30, tzinfo=UTC)
+LAST_SECOND = datetime(2026, 1, 1, 12, 0, 59, tzinfo=UTC)
+NEXT_MINUTE = datetime(2026, 1, 1, 12, 1, 0, tzinfo=UTC)
+
+
+def flood_guard(clock):
+    return LLMGuard(
+        daily_cap=1000, per_customer_per_minute=3, breaker=SharedBreaker(50, 60), now=clock
+    )
+
+
+def flood(chat, groq, count, start=0):
+    for _ in range(count):
         groq.classify_queue.append(reply(intent="ADD_TO_CART", items=[item("quinoa", 2)]))
-    for i in range(60):
+    for i in range(start, start + count):
         chat.send(noise(i))
         assert chat.keys, "the engine always answers"
+
+
+def test_one_customer_flooding_makes_a_bounded_number_of_calls_and_changes_no_cart():
+    groq = FakeGroq()
+    chat = build(groq, flood_guard(FrozenClock(MID_MINUTE)))  # inside ONE minute window
+    flood(chat, groq, 60)
     assert 1 <= groq.calls <= 3
+    assert cart_of(chat) == {}
+
+
+def test_the_per_customer_limit_is_per_fixed_minute_and_never_counts_twice():
+    clock = FrozenClock(MID_MINUTE)
+    guard = flood_guard(clock)
+    window = [guard.acquire("cust-a") for _ in range(200)]  # hammered inside one minute
+    assert sum(p.ok for p in window) == 3  # exactly the limit, however hard it is hit
+    assert {p.reason for p in window if not p.ok} == {"customer_limit"}
+    assert guard.acquire("cust-b").ok  # another customer has their own counter
+    clock.at = NEXT_MINUTE  # the next fixed minute: a fresh counter, so three more are allowed
+    again = [guard.acquire("cust-a") for _ in range(200)]
+    assert sum(p.ok for p in again) == 3
+    # nothing is counted twice: the global daily counter saw 3 + 1 + 3 allowed calls and none
+    # of the refused ones (a customer-limit refusal returns before the global counters)
+    assert llm_guard.cache.get(f"{llm_guard.DAILY_KEY_PREFIX}20260101") == 7
+
+
+def test_a_flood_that_straddles_a_minute_boundary_sees_two_windows_and_no_more():
+    groq = FakeGroq()
+    clock = FrozenClock(LAST_SECOND)
+    chat = build(groq, flood_guard(clock))
+    flood(chat, groq, 30)
+    first_window = groq.calls
+    assert 1 <= first_window <= 3
+    clock.at = NEXT_MINUTE  # one second later, the next window
+    flood(chat, groq, 30, start=30)
+    # the documented behaviour: at most the limit in each fixed minute, so up to twice the limit
+    # across the boundary and never more; the second window starts from zero
+    assert groq.calls - first_window == first_window
+    assert groq.calls <= 6
     assert cart_of(chat) == {}
 
 
@@ -413,8 +472,7 @@ INJECTIONS = {
 @pytest.mark.parametrize("lang", sorted(INJECTIONS))
 def test_repeated_injection_attempts_in_each_language_never_change_the_cart(lang):
     groq = FakeGroq()
-    guard = LLMGuard(daily_cap=1000, per_customer_per_minute=3, breaker=SharedBreaker(50, 60))
-    chat = build(groq, guard)
+    chat = build(groq, flood_guard(FrozenClock(MID_MINUTE)))  # one minute window, never two
     for _ in range(10):  # an obedient model that returns the attack's request every time
         groq.classify_queue.append(reply(intent="ADD_TO_CART", items=[item("quinoa", 50)]))
         chat.send(INJECTIONS[lang])

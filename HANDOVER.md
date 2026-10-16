@@ -566,3 +566,5 @@ server-side scripts, one before and one after the call (`apps/ai/llm_scripts.py`
 two round trips per call, still atomic. The in-memory cache (tests, runs without `REDIS_URL`) keeps
 the plain per-command code; `apps/ai/tests/test_llm_guard_scripts.py` runs the same scenarios on both
 and checks the command count on Redis.
+
+**Per-minute window.** `IVA_LLM_CUSTOMER_PER_MINUTE` is counted per customer in FIXED wall-clock minutes (`int(timestamp // 60)`), not a sliding 60 seconds: at most the limit inside each minute, so up to twice the limit across a minute boundary, and refused attempts still increment the per-customer counter (only the global counters skip refused calls); tests that assert a call count therefore pin the clock inside one minute with `LLMGuard(now=...)`, and a separate test pins the boundary behaviour.

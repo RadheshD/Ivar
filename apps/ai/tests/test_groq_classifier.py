@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from datetime import UTC, datetime
 
 import pytest
 from django.core.cache.backends.locmem import LocMemCache
@@ -29,6 +30,9 @@ from apps.ai.classifier import (
 from apps.ai.groq import DEFAULT_BASE_URL, GroqClassifier
 from apps.ai.intents import CLASSIFIABLE_INTENTS, Intent
 from apps.iva_common.http_transport import HttpError, HttpResponse
+
+# Mid-minute: the per-customer limit counts in fixed wall-clock minutes (see HANDOVER.md).
+MID_MINUTE = datetime(2026, 1, 1, 12, 0, 30, tzinfo=UTC)
 
 SECRET = "gsk_TEST_KEY_never_real_0123456789"
 CATALOG = (
@@ -332,7 +336,8 @@ def test_daily_cap_is_enforced_and_shared_across_customers():
 
 
 def test_per_customer_limit_is_per_customer_and_does_not_burn_the_daily_cap():
-    guard = llm_guard.LLMGuard(daily_cap=100, per_customer_per_minute=2)
+    # the clock is pinned inside one minute: the limit is per fixed wall-clock minute
+    guard = llm_guard.LLMGuard(daily_cap=100, per_customer_per_minute=2, now=lambda: MID_MINUTE)
     assert [guard.allow("a")[0] for _ in range(4)] == [True, True, False, False]
     assert guard.allow("b")[0]
     assert guard.allow("a") == (False, "customer_limit")

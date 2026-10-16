@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections import deque
+from datetime import UTC, datetime
 
 import pytest
 from django.core.cache.backends.locmem import LocMemCache
@@ -31,6 +32,8 @@ from apps.conversations.engine import ConversationEngine
 from .harness import ADDRESS, WA_ID, Chat, onboard
 
 NOISE = "zork florp"  # nothing in the rules understands this
+# Mid-minute: the per-customer limit counts in fixed wall-clock minutes (see HANDOVER.md).
+MID_MINUTE = datetime(2026, 1, 1, 12, 0, 30, tzinfo=UTC)
 
 
 def reply(intent="ADD_TO_CART", confidence=0.92, items=None, ambiguous=False, language="en"):
@@ -272,7 +275,7 @@ def test_daily_cap_stops_calls(llm_chat, fake, backend, store, clock):
 
 
 def test_per_customer_limit_stops_calls(backend, store, clock, fake):
-    guard = LLMGuard(daily_cap=100, per_customer_per_minute=1)
+    guard = LLMGuard(daily_cap=100, per_customer_per_minute=1, now=lambda: MID_MINUTE)
     pipeline = IntentPipeline(fallback=LLMFallback(fake, guard, min_confidence=0.7))
     chat = Chat(ConversationEngine(backend, store, pipeline, clock=clock))
     onboard(chat)
