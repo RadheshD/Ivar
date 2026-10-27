@@ -43,6 +43,9 @@ timezone-aware. All IDs are strings.
 def get_or_create_customer(self, whatsapp_id: str) -> CustomerRef: ...
 
 
+def get_customer(self, customer_id: str) -> CustomerRef | None: ...
+
+
 def update_profile(
     self,
     customer_id: str,
@@ -55,6 +58,7 @@ def update_profile(
 ) -> CustomerRef: ...
 ```
 - `get_or_create_customer`: resolves (or creates) a customer from a WhatsApp ID. Called on every turn.
+- `get_customer`: looks a customer up by backend ID; `None` if unknown; never creates one.
 - `update_profile`: partial update; `None` for any field means "unchanged" (this means a diet, once set, cannot be cleared this way — see Contract decisions, Open request #1).
 
 ### CatalogPort
@@ -120,8 +124,10 @@ def checkout(self, customer_id: str, address_id: str, idempotency_key: str) -> C
 def get_latest_order(self, customer_id: str) -> OrderStatusView | None: ...
 def get_order(self, customer_id: str, order_number: str) -> OrderStatusView | None: ...
 def list_recent_orders(self, customer_id: str, limit: int = 5) -> list[OrderStatusView]: ...
+def get_order_detail(self, customer_id: str, order_number: str) -> OrderDetail | None: ...
 ```
 - `get_order` returns `None` for an order number that does not exist — it never raises `NotFound` for orders (see Contract decisions). An order owned by another customer raises `NotAuthorized`.
+- `get_order_detail` returns an `OrderDetail` (order number, `placed_at`, total, currency, statuses and `lines`, a tuple of `OrderLine` with names and prices as at the time of the order; no address). Same `None` / `NotAuthorized` rules as `get_order`.
 - `OrderStatusView.events` are oldest first; order-status events use `OrderStatus` values, payment events use `PAYMENT_<PaymentStatus>` (built by `payment_event()`, e.g. `PAYMENT_PAID`).
 
 ### Errors (`BackendError` and subclasses, all in `backend_port.py`)

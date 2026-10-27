@@ -116,12 +116,12 @@ Defined in `apps/conversations/backend_port.py` as `typing.Protocol` interfaces 
 
 | Port | Operations |
 |---|---|
-| CustomerPort | `get_or_create_customer`, `update_profile` |
+| CustomerPort | `get_or_create_customer`, `get_customer`, `update_profile` |
 | CatalogPort | `list_categories`, `list_products`, `get_product`, `resolve_product_names` |
 | CartPort | `get_cart`, `add_item`, `update_quantity`, `remove_item` |
 | AddressPort | `list_addresses`, `add_address` |
 | CheckoutPort | `checkout(customer_id, address_id, idempotency_key)` |
-| OrderPort | `get_latest_order`, `get_order`, `list_recent_orders` |
+| OrderPort | `get_latest_order`, `get_order`, `list_recent_orders`, `get_order_detail` |
 
 **Errors:** `BackendError` → `BackendUnavailable`, `NotFound`, `ProductUnavailable`, `InvalidQuantity`, `CartEmpty`, `CheckoutRejected`, `NotAuthorized`. The engine maps each to a friendly localized message.
 
