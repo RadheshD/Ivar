@@ -71,6 +71,17 @@ def test_incomplete_class_lists_missing_operations():
     assert "get_cart," not in message and "get_or_create_customer" not in message
 
 
+@pytest.mark.parametrize("missing", ["get_order_detail", "get_customer"])
+def test_adapter_without_a_new_order_or_customer_method_is_rejected(missing):
+    cls = type("PartialFake", (FakeBackend,), {missing: None})
+    globals()["PartialFake"] = cls  # import_string needs a module attribute
+    try:
+        with pytest.raises(BackendConfigurationError, match=missing):
+            load_adapter_class(f"{HERE}.PartialFake")
+    finally:
+        del globals()["PartialFake"]
+
+
 def test_empty_path_fails_clearly():
     with pytest.raises(BackendConfigurationError, match="not set"):
         load_adapter_class("")

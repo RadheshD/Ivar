@@ -180,6 +180,34 @@ class OrderStatusView:
     eta_start: datetime | None
     eta_end: datetime | None
     tracking_id: str | None
+    # Optional: an adapter that does not know them leaves them ``None``.
+    placed_at: datetime | None = None
+    total: Decimal | None = None
+    currency: str | None = None
+
+
+@dataclass(frozen=True)
+class OrderLine:
+    """One line of a placed order. Name and prices are as at the time of the order."""
+
+    product_id: str
+    variant_id: str
+    name: str
+    variant_label: str | None
+    quantity: int
+    unit_price: Decimal
+    line_total: Decimal
+
+
+@dataclass(frozen=True)
+class OrderDetail:
+    order_number: str
+    placed_at: datetime
+    total: Decimal
+    currency: str
+    order_status: str
+    payment_status: str
+    lines: tuple[OrderLine, ...]
 
 
 # --------------------------------------------------------------------------- ports
@@ -188,6 +216,8 @@ class OrderStatusView:
 @runtime_checkable
 class CustomerPort(Protocol):
     def get_or_create_customer(self, whatsapp_id: str) -> CustomerRef: ...
+
+    def get_customer(self, customer_id: str) -> CustomerRef | None: ...
 
     def update_profile(
         self,
@@ -253,6 +283,8 @@ class OrderPort(Protocol):
     def get_order(self, customer_id: str, order_number: str) -> OrderStatusView | None: ...
 
     def list_recent_orders(self, customer_id: str, limit: int = 5) -> list[OrderStatusView]: ...
+
+    def get_order_detail(self, customer_id: str, order_number: str) -> OrderDetail | None: ...
 
 
 @runtime_checkable

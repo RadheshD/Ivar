@@ -44,6 +44,7 @@ from .backend_port import (
     InvalidQuantity,
     NotAuthorized,
     NotFound,
+    OrderDetail,
     OrderStatus,
     OrderStatusEvent,
     OrderStatusView,
@@ -503,6 +504,9 @@ class FakeBackend:
             eta_start=order.eta_start,
             eta_end=order.eta_end,
             tracking_id=order.tracking_id,
+            placed_at=order.events[0].at if order.events else None,
+            total=order.total,
+            currency=order.currency,
         )
 
     def _order(self, order_number: str) -> _Order:
@@ -536,6 +540,12 @@ class FakeBackend:
                 self._changed()
             self._log("get_or_create_customer", customer=customer_id, created=created)
             return self._customers[customer_id]
+
+    def get_customer(self, customer_id: str) -> CustomerRef | None:
+        with self._txn():
+            customer = self._customers.get(customer_id)
+            self._log("get_customer", customer=customer_id, found=customer is not None)
+            return customer
 
     def update_profile(
         self,
@@ -806,6 +816,25 @@ class FakeBackend:
             orders = self._customer_orders(customer_id)[::-1][: max(limit, 0)]
             self._log("list_recent_orders", customer=customer_id, count=len(orders))
             return [self._order_view(o) for o in orders]
+
+    def get_order_detail(self, customer_id: str, order_number: str) -> OrderDetail | None:
+        with self._txn():
+            self._customer(customer_id)
+            order = self._orders.get((order_number or "").strip().upper())
+            self._log("get_order_detail", customer=customer_id, found=order is not None)
+            if order is None:
+                return None
+            if order.customer_id != customer_id:
+                raise NotAuthorized("Order belongs to another customer.")
+            return OrderDetail(
+                order_number=order.order_number,
+                placed_at=order.events[0].at,
+                total=order.total,
+                currency=order.currency,
+                order_status=order.order_status,
+                payment_status=order.payment_status,
+                lines=(),  # order lines are not stored yet
+            )
 
     # ------------------------------------------------------------------ test-only helpers
     # Not part of the Backend Port. They stand in for the payment provider and the

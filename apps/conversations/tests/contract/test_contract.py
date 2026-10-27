@@ -23,6 +23,8 @@ from apps.conversations.backend_port import (
     InvalidQuantity,
     NotAuthorized,
     NotFound,
+    OrderDetail,
+    OrderLine,
     OrderStatus,
     OrderStatusView,
     PaymentStatus,
@@ -66,7 +68,8 @@ def test_implements_every_operation(backend):
     assert isinstance(backend, BackendPort)
     for name in port_operations():
         assert callable(getattr(backend, name)), name
-    assert len(port_operations()) == 16
+    assert len(port_operations()) == 18
+    assert {"get_order_detail", "get_customer"} <= set(port_operations())
 
 
 # --------------------------------------------------------------------------- customers
@@ -94,6 +97,22 @@ def test_update_profile_partial(backend, customer):
     assert updated.diet == "egg" and updated.onboarding_complete is True
     again = backend.get_or_create_customer(customer.whatsapp_id)
     assert again == updated
+
+
+def test_get_customer(backend, customer):
+    found = backend.get_customer(customer.id)
+    assert isinstance(found, CustomerRef)
+    assert found == customer
+    assert found.whatsapp_id == customer.whatsapp_id
+
+
+def test_get_customer_unknown_is_none_and_never_creates(backend, harness):
+    missing = unknown_id()
+    assert backend.get_customer(missing) is None
+    assert backend.get_customer(missing) is None  # still nothing: the lookup never creates
+    wa_id = harness.new_whatsapp_id()
+    created = backend.get_or_create_customer(wa_id)
+    assert backend.get_customer(created.id) == created
 
 
 def test_update_profile_unknown_customer(backend):
@@ -391,3 +410,46 @@ def test_other_customers_order(backend, harness, customer, other_customer):
         backend.get_order(customer.id, order.order_number)
     assert backend.get_latest_order(customer.id) is None
     assert backend.list_recent_orders(customer.id) == []
+
+
+def test_order_views_carry_placed_at_total_and_currency(backend, harness, customer):
+    placed = place_order(backend, harness, customer, quantity=2)
+    for view in (
+        backend.get_latest_order(customer.id),
+        backend.get_order(customer.id, placed.order_number),
+        backend.list_recent_orders(customer.id)[0],
+    ):
+        assert view.placed_at is not None and view.placed_at.tzinfo is not None
+        assert view.placed_at == view.events[0].at
+        assert isinstance(view.total, Decimal) and view.total == placed.total
+        assert view.currency == placed.currency
+
+
+def test_order_detail(backend, harness, customer):
+    placed = place_order(backend, harness, customer, quantity=2)
+    detail = backend.get_order_detail(customer.id, placed.order_number)
+    assert isinstance(detail, OrderDetail)
+    assert detail.order_number == placed.order_number
+    assert detail.order_status == OrderStatus.PENDING
+    assert detail.payment_status == PaymentStatus.PENDING
+    assert isinstance(detail.total, Decimal) and detail.total == placed.total
+    assert detail.currency == placed.currency
+    assert detail.placed_at.tzinfo is not None
+    assert isinstance(detail.lines, tuple)
+    assert all(isinstance(line, OrderLine) for line in detail.lines)
+    assert not hasattr(detail, "address") and not hasattr(detail, "address_id")
+
+
+def test_order_detail_unknown_order_is_none(backend, customer):
+    assert backend.get_order_detail(customer.id, "IVA0000000") is None
+
+
+def test_order_detail_of_another_customer(backend, harness, customer, other_customer):
+    order = place_order(backend, harness, other_customer)
+    with pytest.raises(NotAuthorized):
+        backend.get_order_detail(customer.id, order.order_number)
+
+
+def test_order_detail_unknown_customer(backend):
+    with pytest.raises(NotFound):
+        backend.get_order_detail(unknown_id(), "IVA0000000")

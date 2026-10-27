@@ -247,3 +247,28 @@ def test_set_price_changes_product_variant_and_cart(fake, customer):
         fake.set_price("no-such-product", "1")
     with pytest.raises(TypeError):
         fake.set_price("ivar-oats", 1.5)  # money is never float
+
+
+def test_order_views_fill_placed_at_total_and_currency(fake, customer):
+    order = order_for(fake, customer)
+    first_event_at = fake.get_order(customer.id, order.order_number).events[0].at
+    for view in (
+        fake.get_order(customer.id, order.order_number),
+        fake.get_latest_order(customer.id),
+        fake.list_recent_orders(customer.id)[0],
+    ):
+        assert view.placed_at == first_event_at == T0 + timedelta(seconds=1)
+        assert view.total == Decimal("498.00") and view.currency == "INR"
+
+
+def test_order_detail_has_no_lines_until_they_are_stored(fake, customer):
+    order = order_for(fake, customer)
+    detail = fake.get_order_detail(customer.id, order.order_number.lower())
+    assert detail.lines == ()
+    assert (detail.total, detail.currency) == (Decimal("498.00"), "INR")
+
+
+def test_get_customer_does_not_create(fake):
+    assert fake.get_customer("cust_99") is None
+    assert fake.get_customer("cust_1") is None
+    assert fake.get_or_create_customer("919876541234").id == "cust_1"  # first real one: cust_1
