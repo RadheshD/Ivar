@@ -453,3 +453,17 @@ def test_order_detail_of_another_customer(backend, harness, customer, other_cust
 def test_order_detail_unknown_customer(backend):
     with pytest.raises(NotFound):
         backend.get_order_detail(unknown_id(), "IVA0000000")
+
+
+def test_order_detail_lines_are_what_was_checked_out(backend, harness, customer):
+    variant = harness.in_stock_variant()
+    cart = backend.add_item(customer.id, variant, 2)
+    address = backend.add_address(customer.id, "12 Test Street, Hyderabad")
+    placed = backend.checkout(customer.id, address.id, key())
+    detail = backend.get_order_detail(customer.id, placed.order_number)
+    assert [line.variant_id for line in detail.lines] == [variant]
+    [line] = detail.lines
+    assert line.quantity == 2
+    assert line.unit_price == cart.lines[0].unit_price
+    assert line.line_total == line.unit_price * line.quantity
+    assert detail.total == sum((ln.line_total for ln in detail.lines), Decimal("0"))

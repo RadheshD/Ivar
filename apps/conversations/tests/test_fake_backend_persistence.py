@@ -6,6 +6,7 @@ Every test uses its own temporary file; the developer's real state file is never
 import json
 import logging
 import os
+from decimal import Decimal
 
 import pytest
 from django.test import override_settings
@@ -215,3 +216,30 @@ def test_state_file_counts_are_plain_numbers_and_zero_for_junk(path):
     assert counts == {"customers": 1, "cart lines": 1, "addresses": 1, "orders": 1}
     assert state_file_counts(path.with_name("missing.json"))["customers"] == 0
     assert os.path.exists(path)
+
+
+def test_order_lines_survive_a_restart(path):
+    first = FakeBackend(state_file=path)
+    customer, _, result = populate(first)
+    before = first.get_order_detail(customer.id, result.order_number)
+    assert len(before.lines) == 2
+    second = FakeBackend(state_file=path)
+    after = second.get_order_detail(customer.id, result.order_number)
+    assert after.lines == before.lines
+    assert all(isinstance(line.unit_price, Decimal) for line in after.lines)
+
+
+def test_a_state_file_from_before_order_lines_still_loads(path, tmp_path):
+    first = FakeBackend(state_file=path)
+    customer, _, result = populate(first)
+    old = json.loads(path.read_text(encoding="utf-8"))
+    for order in old["orders"]:
+        order.pop("lines", None)  # what a pre-change state file looks like
+    copy = tmp_path / "old_state_copy.json"
+    copy.write_text(json.dumps(old), encoding="utf-8")
+    assert "lines" not in copy.read_text(encoding="utf-8")
+    loaded = FakeBackend(state_file=copy)
+    detail = loaded.get_order_detail(customer.id, result.order_number)
+    assert detail.lines == ()
+    assert detail.total == result.total
+    assert loaded.get_order(customer.id, result.order_number).placed_at is not None

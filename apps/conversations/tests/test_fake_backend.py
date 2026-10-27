@@ -1,5 +1,6 @@
 """Behaviour specific to the Fake Backend (numbering, fake URLs, test-only helpers)."""
 
+import json
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -8,6 +9,7 @@ import pytest
 
 from apps.conversations.backend_port import (
     CheckoutRejected,
+    NotAuthorized,
     NotFound,
     OrderStatus,
     PaymentStatus,
@@ -261,10 +263,9 @@ def test_order_views_fill_placed_at_total_and_currency(fake, customer):
         assert view.total == Decimal("498.00") and view.currency == "INR"
 
 
-def test_order_detail_has_no_lines_until_they_are_stored(fake, customer):
+def test_order_detail_total_and_currency(fake, customer):
     order = order_for(fake, customer)
     detail = fake.get_order_detail(customer.id, order.order_number.lower())
-    assert detail.lines == ()
     assert (detail.total, detail.currency) == (Decimal("498.00"), "INR")
 
 
@@ -272,3 +273,74 @@ def test_get_customer_does_not_create(fake):
     assert fake.get_customer("cust_99") is None
     assert fake.get_customer("cust_1") is None
     assert fake.get_or_create_customer("919876541234").id == "cust_1"  # first real one: cust_1
+
+
+def multi_line_order(fake, customer, idem="multi"):
+    fake.add_item(customer.id, "ivar-oats--std", 2)
+    fake.add_item(customer.id, "quinoa--std", 1)
+    fake.add_item(customer.id, "seed-mix--std", 3)
+    address = fake.add_address(customer.id, "Flat 12, Green Park Road, Madhapur")
+    return fake.checkout(customer.id, address.id, idem)
+
+
+def test_order_detail_keeps_every_line_as_at_checkout(fake, customer):
+    cart = None
+    fake.add_item(customer.id, "ivar-oats--std", 2)
+    fake.add_item(customer.id, "quinoa--std", 1)
+    fake.add_item(customer.id, "seed-mix--std", 3)
+    cart = fake.get_cart(customer.id)
+    address = fake.add_address(customer.id, "1 Main Road")
+    order = fake.checkout(customer.id, address.id, "k")
+    detail = fake.get_order_detail(customer.id, order.order_number)
+    assert len(detail.lines) == 3
+    for line, cart_line in zip(detail.lines, cart.lines, strict=True):
+        variant = fake.get_product(cart_line.product_id).variants[0]
+        assert (line.product_id, line.variant_id) == (cart_line.product_id, cart_line.variant_id)
+        assert line.name == cart_line.name
+        assert line.variant_label == variant.label
+        assert line.quantity == cart_line.quantity
+        assert line.unit_price == cart_line.unit_price
+        assert line.line_total == cart_line.line_total
+
+
+def test_lines_are_decimal_and_add_up(fake, customer):
+    order = multi_line_order(fake, customer)
+    detail = fake.get_order_detail(customer.id, order.order_number)
+    for line in detail.lines:
+        assert isinstance(line.unit_price, Decimal) and isinstance(line.line_total, Decimal)
+        assert isinstance(line.quantity, int)
+        assert line.line_total == line.unit_price * line.quantity
+    assert detail.total == sum((line.line_total for line in detail.lines), Decimal("0"))
+    assert detail.total == order.total
+
+
+def test_a_later_price_change_does_not_change_a_past_order(fake, customer):
+    order = multi_line_order(fake, customer)
+    before = fake.get_order_detail(customer.id, order.order_number)
+    assert len(before.lines) == 3
+    fake.set_price("ivar-oats", Decimal("1.00"))
+    after = fake.get_order_detail(customer.id, order.order_number)
+    assert after == before
+    assert fake.get_order(customer.id, order.order_number).total == order.total
+
+
+def test_no_address_text_is_stored_with_the_order(fake, customer):
+    order = multi_line_order(fake, customer)
+    detail = fake.get_order_detail(customer.id, order.order_number)
+    assert "Green Park" not in repr(detail)
+    assert "Green Park" not in json.dumps(fake._snapshot()["orders"])
+
+
+def test_order_detail_of_another_customers_order(fake, customer):
+    order = multi_line_order(fake, customer)
+    other = fake.get_or_create_customer("919876549999")
+    with pytest.raises(NotAuthorized):
+        fake.get_order_detail(other.id, order.order_number)
+
+
+def test_a_replayed_checkout_keeps_the_original_lines(fake, customer):
+    order = multi_line_order(fake, customer, idem="same")
+    fake.add_item(customer.id, "quinoa--std", 5)
+    address = fake.list_addresses(customer.id)[0]
+    assert fake.checkout(customer.id, address.id, "same") == order
+    assert len(fake.get_order_detail(customer.id, order.order_number).lines) == 3

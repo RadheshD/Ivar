@@ -45,6 +45,7 @@ from .backend_port import (
     NotAuthorized,
     NotFound,
     OrderDetail,
+    OrderLine,
     OrderStatus,
     OrderStatusEvent,
     OrderStatusView,
@@ -153,6 +154,8 @@ class _Order:
     eta_start: datetime | None = None
     eta_end: datetime | None = None
     tracking_id: str | None = None
+    # Captured at checkout (names and prices as they were then); no address text.
+    lines: list[OrderLine] = field(default_factory=list)
 
 
 def _tokens(text: str) -> list[str]:
@@ -312,6 +315,14 @@ class FakeBackend:
                     "eta_start": when(o.eta_start),
                     "eta_end": when(o.eta_end),
                     "tracking_id": o.tracking_id,
+                    "lines": [
+                        {
+                            **asdict(ln),
+                            "unit_price": str(ln.unit_price),
+                            "line_total": str(ln.line_total),
+                        }
+                        for ln in o.lines
+                    ],
                 }
                 for o in self._orders.values()
             ],
@@ -365,6 +376,16 @@ class FakeBackend:
                 eta_start=when(o["eta_start"]),
                 eta_end=when(o["eta_end"]),
                 tracking_id=o["tracking_id"],
+                lines=[  # absent in state files saved before lines were kept
+                    OrderLine(
+                        **{
+                            **ln,
+                            "unit_price": to_decimal(ln["unit_price"]),
+                            "line_total": to_decimal(ln["line_total"]),
+                        }
+                    )
+                    for ln in o.get("lines", [])
+                ],
             )
             self._orders[order.order_number] = order
         for item in data["checkouts"]:
@@ -507,6 +528,18 @@ class FakeBackend:
             placed_at=order.events[0].at if order.events else None,
             total=order.total,
             currency=order.currency,
+        )
+
+    def _order_line(self, line: CartLine) -> OrderLine:
+        _, variant = self._variant(line.variant_id)
+        return OrderLine(
+            product_id=line.product_id,
+            variant_id=line.variant_id,
+            name=line.name,
+            variant_label=variant.label,
+            quantity=line.quantity,
+            unit_price=line.unit_price,
+            line_total=line.line_total,
         )
 
     def _order(self, order_number: str) -> _Order:
@@ -770,6 +803,7 @@ class FakeBackend:
                 payment_status=PaymentStatus.PENDING.value,
                 payment_url=FAKE_PAYMENT_URL.format(order_number=order_number),
                 events=[OrderStatusEvent(OrderStatus.PENDING.value, self._clock())],
+                lines=[self._order_line(line) for line in view.lines],
             )
             self._orders[order_number] = order
             self._carts[customer_id] = {}
@@ -833,7 +867,7 @@ class FakeBackend:
                 currency=order.currency,
                 order_status=order.order_status,
                 payment_status=order.payment_status,
-                lines=(),  # order lines are not stored yet
+                lines=tuple(order.lines),
             )
 
     # ------------------------------------------------------------------ test-only helpers
