@@ -334,6 +334,9 @@ class FakeBackend:
                 }
                 for (cid, key), r in self._checkouts.items()
             ],
+            # Dev-only catalog changes made on purpose (``persist_catalog_override``); the key
+            # is written only when there is one, so a normal state file is unchanged.
+            **({"catalog_overrides": self._overrides} if self._overrides else {}),
         }  # fmt: skip
 
     def _restore(self, data: dict) -> None:
@@ -388,6 +391,11 @@ class FakeBackend:
                 ],
             )
             self._orders[order.order_number] = order
+        overrides = data.get("catalog_overrides") or {}
+        self._overrides = {pid: dict(change) for pid, change in overrides.items()}
+        for product_id, change in overrides.items():
+            with contextlib.suppress(NotFound):  # a product the fixture no longer has
+                self._apply_override(product_id, change.get("in_stock"), change.get("price"))
         for item in data["checkouts"]:
             r = item["result"]
             self._checkouts[(item["customer_id"], item["key"])] = CheckoutResult(
@@ -947,6 +955,35 @@ class FakeBackend:
             self._products[product_id] = replace(product, price=amount, variants=variants)
             self._log("set_price", product=product_id)
 
+    def persist_catalog_override(
+        self,
+        product_id: str,
+        *,
+        in_stock: bool | None = None,
+        price: Decimal | int | str | None = None,
+    ) -> None:
+        """DEV ONLY: change a product's stock or price AND remember it in the state file, so
+        other processes (a running server, a later restart) see it. ``set_stock`` and
+        ``set_price`` stay in-memory only. Needs a state file to be of any use."""
+        if in_stock is None and price is None:
+            raise ValueError("Give in_stock, price or both.")
+        amount = None if price is None else quantize(price)  # money is never float
+        with self._txn():
+            self._apply_override(product_id, in_stock, amount)
+            change = self._overrides.setdefault(product_id, {})
+            if in_stock is not None:
+                change["in_stock"] = in_stock
+            if amount is not None:
+                change["price"] = str(amount)
+            self._changed()
+            self._log("persist_catalog_override", product=product_id)
+
+    def _apply_override(self, product_id: str, in_stock, price) -> None:
+        if in_stock is not None:
+            self.set_stock(product_id, bool(in_stock))
+        if price is not None:
+            self.set_price(product_id, price)
+
     def reset(self) -> None:
         """Discard all customers, carts, addresses and orders and reload the fixture.
         With a state file configured, the saved state is cleared too."""
@@ -965,6 +1002,7 @@ class FakeBackend:
             self._addresses: dict[str, tuple[Address, str]] = {}
             self._orders: dict[str, _Order] = {}
             self._checkouts: dict[tuple[str, str], CheckoutResult] = {}
+            self._overrides: dict[str, dict] = {}
             self._customer_seq = 0
             self._line_seq = 0
             self._address_seq = 0

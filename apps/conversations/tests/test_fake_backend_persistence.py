@@ -243,3 +243,79 @@ def test_a_state_file_from_before_order_lines_still_loads(path, tmp_path):
     assert detail.lines == ()
     assert detail.total == result.total
     assert loaded.get_order(customer.id, result.order_number).placed_at is not None
+
+
+def test_a_catalog_override_survives_a_restart(path):
+    first = FakeBackend(state_file=path)
+    first.persist_catalog_override("quinoa", in_stock=False)
+    first.persist_catalog_override("seed-mix", price=Decimal("111.50"))
+    second = FakeBackend(state_file=path)
+    assert second.get_product("quinoa").in_stock is False
+    assert second.get_product("quinoa").variants[0].in_stock is False
+    assert second.get_product("seed-mix").price == Decimal("111.50")
+    assert second.get_product("seed-mix").variants[0].price == Decimal("111.50")
+    assert second.get_product("ivar-oats").in_stock is True  # nothing else changed
+
+
+def test_a_later_override_replaces_an_earlier_one_and_in_stock_undoes_out_of_stock(path):
+    first = FakeBackend(state_file=path)
+    first.persist_catalog_override("quinoa", in_stock=False)
+    first.persist_catalog_override("quinoa", in_stock=True)
+    assert FakeBackend(state_file=path).get_product("quinoa").in_stock is True
+
+
+def test_the_override_is_saved_only_when_there_is_one(path):
+    backend = FakeBackend(state_file=path)
+    populate(backend)
+    assert "catalog_overrides" not in json.loads(path.read_text(encoding="utf-8"))
+    backend.persist_catalog_override("quinoa", in_stock=False)
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["catalog_overrides"] == {"quinoa": {"in_stock": False}}
+    assert "products" not in saved  # still no catalog in the file, only the changes
+
+
+def test_set_stock_and_set_price_still_do_not_persist(path):
+    first = FakeBackend(state_file=path)
+    first.get_or_create_customer(WA)  # creates the file
+    first.set_stock("quinoa", False)
+    first.set_price("seed-mix", 999)
+    second = FakeBackend(state_file=path)
+    assert second.get_product("quinoa").in_stock is True
+    assert second.get_product("seed-mix").price != Decimal("999")
+
+
+def test_a_reset_forgets_the_overrides(path):
+    backend = FakeBackend(state_file=path)
+    backend.persist_catalog_override("quinoa", in_stock=False)
+    backend.reset()
+    assert FakeBackend(state_file=path).get_product("quinoa").in_stock is True
+    assert "catalog_overrides" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_a_running_backend_notices_an_override_written_by_another_process(path):
+    server = FakeBackend(state_file=path)
+    server.get_or_create_customer(WA)
+    FakeBackend(state_file=path).persist_catalog_override("quinoa", in_stock=False)
+    assert server.get_product("quinoa").in_stock is True  # catalog reads do not refresh...
+    server.get_or_create_customer(WA)  # ...but the next customer operation does
+    assert server.get_product("quinoa").in_stock is False
+
+
+def test_override_arguments_are_checked(path):
+    backend = FakeBackend(state_file=path)
+    with pytest.raises(ValueError):
+        backend.persist_catalog_override("quinoa")
+    with pytest.raises(fake_backend.NotFound):
+        backend.persist_catalog_override("no-such-product", in_stock=False)
+    with pytest.raises(TypeError):
+        backend.persist_catalog_override("quinoa", price=1.5)  # money is never float
+
+
+def test_overrides_are_kept_when_another_process_saves_later(path):
+    FakeBackend(state_file=path).persist_catalog_override("quinoa", in_stock=False)
+    second = FakeBackend(state_file=path)
+    second.persist_catalog_override("seed-mix", price=Decimal("111"))
+    second.get_or_create_customer(WA)  # an ordinary save
+    third = FakeBackend(state_file=path)
+    assert third.get_product("quinoa").in_stock is False
+    assert third.get_product("seed-mix").price == Decimal("111.00")
