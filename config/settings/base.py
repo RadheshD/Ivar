@@ -1,10 +1,12 @@
 """Settings shared by every environment. HOST ONLY — not delivered with the apps."""
 
+import json
 import os
 import ssl
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -133,6 +135,39 @@ IVA_ORDER_WAIT_STATUS = env.str("IVA_ORDER_WAIT_STATUS", default="sent")
 IVA_FAKE_BACKEND_STATE_FILE = env.str("IVA_FAKE_BACKEND_STATE_FILE", default="")
 if IVA_FAKE_BACKEND_STATE_FILE and not Path(IVA_FAKE_BACKEND_STATE_FILE).is_absolute():
     IVA_FAKE_BACKEND_STATE_FILE = str(BASE_DIR / IVA_FAKE_BACKEND_STATE_FILE)
+# Order-status notifications: the backend PUSHES events to POST /webhooks/whatsapp/order-events/
+# (apps.whatsapp.order_events). The shared secret authenticates that call (header
+# X-IVA-Events-Secret); empty means the endpoint rejects everything. Never printed or logged.
+IVA_ORDER_EVENTS_SECRET = env.str("IVA_ORDER_EVENTS_SECRET", default="")
+# Outside the 24-hour window only a pre-approved WhatsApp template may be sent. JSON object:
+# {"CONFIRMED": {"en": "<template name>", "hi": "...", "te": "..."}, ...}. A status or
+# language with no entry is NEVER sent (recorded as undelivered); names are never guessed.
+# Each template gets one body variable, {{1}} = the order number.
+IVA_ORDER_STATUS_TEMPLATES_JSON = env.str("IVA_ORDER_STATUS_TEMPLATES_JSON", default="")
+
+
+def _parse_order_templates(raw: str) -> dict:
+    if not raw.strip():
+        return {}
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        raise ImproperlyConfigured("IVA_ORDER_STATUS_TEMPLATES_JSON is not valid JSON.") from None
+    ok = isinstance(data, dict) and all(
+        isinstance(status, str)
+        and isinstance(by_lang, dict)
+        and all(isinstance(k, str) and isinstance(v, str) and v for k, v in by_lang.items())
+        for status, by_lang in data.items()
+    )
+    if not ok:
+        raise ImproperlyConfigured(
+            'IVA_ORDER_STATUS_TEMPLATES_JSON must look like {"STATUS": {"en": "template_name"}}.'
+        )
+    return data
+
+
+IVA_ORDER_STATUS_TEMPLATES = _parse_order_templates(IVA_ORDER_STATUS_TEMPLATES_JSON)
+
 # Development only: the webhook runs apps.whatsapp.tasks.process_inbound_inline()
 # synchronously instead of enqueuing a Celery task, so no worker or broker is needed.
 # Same claim/lock/rate-limit/at-most-once code path as the worker; only the lock-retry

@@ -181,3 +181,11 @@ def test_real_redis_sets_a_ttl(real_store):
     store.save(whatsapp_id, sample())
     ttl = store._client.ttl(session_key(whatsapp_id))
     assert 0 < ttl <= 30
+
+
+def test_the_applied_reorder_marker_round_trips_and_defaults_to_none():
+    session = Session(reorder_applied="IVA1001")
+    assert Session.from_dict(session.to_dict()).reorder_applied == "IVA1001"
+    old = Session().to_dict()
+    del old["reorder_applied"]  # a session saved before the field existed
+    assert Session.from_dict(old).reorder_applied is None

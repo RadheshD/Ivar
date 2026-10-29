@@ -934,6 +934,12 @@ class FakeBackend:
             self._log("simulate_status", order=order.order_number, status=status)
             return self._order_view(order)
 
+    def order_owner(self, order_number: str) -> str:
+        """DEV ONLY (not a port operation): the ID of the customer who owns an order, so a
+        simulated push event can name them. ``NotFound`` for an unknown order number."""
+        with self._txn():
+            return self._order(order_number).customer_id
+
     def set_stock(self, product_id: str, in_stock: bool) -> None:
         """Mark a product and all its variants in or out of stock."""
         with self._lock:

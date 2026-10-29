@@ -48,7 +48,7 @@ MESSAGES = {
     "menu.body": 'आपको क्या चाहिए? आप टाइप भी कर सकते हैं, जैसे "स्नैक्स दिखाओ" या "मेरा ऑर्डर"।',
     "menu.button": "मेन्यू",
     "menu.cart": "कार्ट देखें",
-    "menu.orders": "मेरा ऑर्डर",
+    "menu.orders": "मेरे ऑर्डर",
     "menu.help": "मदद",
     "menu.language": "भाषा बदलें",
     "menu.diet": "खाने की पसंद",
@@ -156,7 +156,7 @@ MESSAGES = {
     "payment.REFUNDED": "ऑर्डर {order} का पेमेंट वापस कर दिया गया है।",
     "payment.unknown": "ऑर्डर {order} की पेमेंट स्थिति: {status}।",
     # ------------------------------------------------------------------ orders
-    "order.none": "आपका अभी कोई ऑर्डर नहीं है।",
+    "order.none": "आपने अभी तक कोई ऑर्डर नहीं किया है। शुरू करने के लिए मेन्यू देखें!",
     "order.not_found": "ऑर्डर {order} नहीं मिला।",
     "order.status": "ऑर्डर {order}: {status}।",
     "order.payment": "पेमेंट: {status}।",
@@ -164,6 +164,27 @@ MESSAGES = {
     "order.eta_na": "डिलीवरी का समय: अभी उपलब्ध नहीं है।",
     "order.tracking": "ट्रैकिंग ID: {tracking}।",
     "order.tracking_na": "ट्रैकिंग: अभी उपलब्ध नहीं है।",
+    "orders.title": "आपके हाल के ऑर्डर। विवरण देखने के लिए एक चुनें।",
+    "orders.row_desc": "{date} · {total} · {status}",
+    "order.detail_title": "ऑर्डर {order} · {date}",
+    "order.line": "• {name} × {qty} = {total}",
+    "order.total": "कुल: {total}",
+    "order.lines_note": "कीमतें ऑर्डर के समय की हैं।",
+    "order.lines_na": "इस ऑर्डर के आइटम की जानकारी उपलब्ध नहीं है।",
+    "reorder.preview": "ऑर्डर {order} के आइटम:",
+    "reorder.line": "• {name} × {qty} = {total}",
+    "reorder.unavailable": "अभी उपलब्ध नहीं (जोड़े नहीं जाएँगे): {names}।",
+    "reorder.price_title": "आपके ऑर्डर के बाद कीमत बदली है:",
+    "reorder.price_line": "• {name}: {old} → {new}",
+    "reorder.nothing": "इनमें से कोई आइटम अभी उपलब्ध नहीं है, इसलिए आपका कार्ट वैसा ही है।",
+    "reorder.cart_has_items": "आपके कार्ट में पहले से {count} आइटम हैं। आप क्या करना चाहेंगे?",
+    "reorder.replaced": "आपके कार्ट में अब ऑर्डर {order} के आइटम हैं।",
+    "reorder.added": "ऑर्डर {order} के आइटम आपके कार्ट में जोड़ दिए गए।",
+    "reorder.cancelled": "ठीक है, कुछ नहीं बदला।",
+    "reorder.no_lines": "माफ़ कीजिए, यह ऑर्डर दोबारा नहीं किया जा सकता।",
+    "btn.reorder": "दोबारा ऑर्डर",
+    "btn.replace_cart": "कार्ट बदलें",
+    "btn.add_current": "मौजूदा में जोड़ें",
     "status.order.PENDING": "बाकी",
     "status.order.CONFIRMED": "पक्का",
     "status.order.PROCESSING": "तैयार हो रहा है",
@@ -171,6 +192,19 @@ MESSAGES = {
     "status.order.OUT_FOR_DELIVERY": "डिलीवरी के लिए निकला",
     "status.order.DELIVERED": "डिलीवर हो गया",
     "status.order.CANCELLED": "रद्द",
+    "notify.order_status.PENDING": "आपका ऑर्डर {order} हमें मिल गया है। पुष्टि का इंतज़ार है।",
+    "notify.order_status.CONFIRMED": "आपका ऑर्डर {order} पक्का हो गया है।",
+    "notify.order_status.PROCESSING": "आपका ऑर्डर {order} तैयार हो रहा है।",
+    "notify.order_status.PACKED": "आपका ऑर्डर {order} पैक हो गया है।",
+    "notify.order_status.OUT_FOR_DELIVERY": "आपका ऑर्डर {order} डिलीवरी के लिए निकल चुका है।",
+    "notify.order_status.DELIVERED": "आपका ऑर्डर {order} डिलीवर हो गया है।",
+    "notify.order_status.CANCELLED": "आपका ऑर्डर {order} रद्द कर दिया गया है।",
+    "notify.footer": 'जानकारी के लिए "order status" लिखें, या ये संदेश बंद करने के लिए "ऑर्डर अपडेट बंद करो" लिखें।',
+    "notify.stopped": (
+        'ठीक है, अब यहाँ ऑर्डर अपडेट नहीं मिलेंगे। फिर से चालू करने के लिए "ऑर्डर अपडेट चालू करो" '
+        'लिखें। आप कभी भी "order status" पूछ सकते हैं।'
+    ),
+    "notify.resumed": "ऑर्डर अपडेट फिर से चालू हो गए हैं।",
     "status.payment.PENDING": "बाकी",
     "status.payment.PAID": "भुगतान हो गया",
     "status.payment.FAILED": "विफल",
@@ -280,6 +314,24 @@ CART_WORDS = (
 ORDER_STATUS_WORDS = (
     "ऑर्डर स्टेटस", "मेरा ऑर्डर", "ऑर्डर ट्रैक करो", "मेरा ऑर्डर कहाँ है",
     "mera order", "order status", "order track karo",
+)  # fmt: skip
+ORDER_HISTORY_WORDS = (
+    "मेरे ऑर्डर", "ऑर्डर हिस्ट्री", "ऑर्डर", "mere orders", "order history", "orders",
+    "पुराने ऑर्डर", "पिछले ऑर्डर", "purane orders", "pichle orders", "past orders",
+)  # fmt: skip
+# Needs native-speaker review, like all Hindi text.
+REORDER_WORDS = (
+    "दोबारा ऑर्डर", "फिर से ऑर्डर", "पिछला ऑर्डर दोहराओ", "पिछला ऑर्डर दोहराएं",
+    "dobara order", "phir se order", "pichla order repeat karo", "reorder",
+)  # fmt: skip
+# Needs native-speaker review, like all Hindi text.
+STOP_UPDATES_WORDS = (
+    "अपडेट बंद करो", "ऑर्डर अपडेट बंद करो", "नोटिफिकेशन बंद करो",
+    "update band karo", "order update band karo", "notification band karo",
+)  # fmt: skip
+RESUME_UPDATES_WORDS = (
+    "अपडेट चालू करो", "ऑर्डर अपडेट चालू करो", "नोटिफिकेशन चालू करो",
+    "update chalu karo", "order update chalu karo", "notification chalu karo",
 )  # fmt: skip
 HELP_WORDS = ("मदद", "सहायता", "हेल्प", "madad", "help")
 LANGUAGE_WORDS = ("भाषा", "भाषा बदलो", "भाषा बदलें", "bhasha", "bhasha badlo", "language")

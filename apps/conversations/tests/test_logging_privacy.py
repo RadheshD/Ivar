@@ -86,3 +86,47 @@ def test_engine_logs_only_intent_stage_and_state(chat, caplog):
         chat.send("do you have makhana")
     engine_lines = [r.getMessage() for r in caplog.records if r.name.endswith("engine")]
     assert engine_lines == ["engine: intent=PRODUCT_SEARCH stage=rules state=MAIN_MENU"]
+
+
+def test_order_history_paths_never_log_name_address_or_wa_id(chat, caplog):
+    with caplog.at_level(logging.DEBUG):
+        onboard(chat, name=NAME, city=CITY)
+        first = checkout_to_payment(chat)
+        chat.send("my orders")  # one order: its detail
+        backend = chat.engine.backend
+        customer = backend.get_or_create_customer(WA_ID)
+        backend.add_item(customer.id, "quinoa--std", 1)
+        address = backend.list_addresses(customer.id)[0]
+        backend.checkout(customer.id, address.id, "second-order")
+        chat.send("my orders")  # two orders: the list
+        chat.tap("ACT:orders")
+        chat.tap(f"ORDER_STATUS:{first}")
+        chat.send("where is my order")
+        chat.send("order history")
+    logged = _all_log_text(caplog.records)
+    assert caplog.records, "expected the engine to log something"
+    for private in (NAME, CITY, ADDRESS, "Green Park", WA_ID):
+        assert private not in logged, private
+
+
+def test_reorder_paths_never_log_name_address_or_wa_id(chat, caplog):
+    with caplog.at_level(logging.DEBUG):
+        onboard(chat, name=NAME, city=CITY)
+        order = checkout_to_payment(chat)
+        backend = chat.engine.backend
+        chat.tap(f"ORDER_STATUS:{order}")
+        chat.tap(f"ACT:reorder:{order}")  # one tap into an empty cart
+        chat.tap(f"ACT:reorder:{order}")  # repeated tap
+        chat.send("add 2 packets makhana")  # any cart change clears the "already applied" marker
+        backend.set_price("makhana-crunch", 999)
+        chat.tap(f"ACT:reorder:{order}")  # a cart with items: preview with three buttons
+        assert chat.keys == ["reorder.preview"] and len(chat.last[0].buttons) == 3
+        for button in [b for m in chat.last for b in getattr(m, "buttons", ())]:
+            if button.id.startswith(("ACT:reorder_replace", "ACT:reorder_add")):
+                chat.tap(button.id)
+        chat.tap(f"ACT:reorder_cancel:{order}")
+        chat.tap("ACT:reorder:IVA9999")  # an order that does not exist
+    logged = _all_log_text(caplog.records)
+    assert caplog.records, "expected the engine to log something"
+    for private in (NAME, CITY, ADDRESS, "Green Park", WA_ID):
+        assert private not in logged, private

@@ -26,12 +26,13 @@ import time
 from celery import shared_task
 from django.conf import settings
 
+from apps.conversations.backend_port import BackendUnavailable, OrderStatusChangeEvent
 from apps.conversations.channel import Inbound
 from apps.conversations.engine import get_engine
 from apps.conversations.models import ConversationMessage
 from apps.iva_common.logging import mask_phone
 
-from . import ordering, rate_limit, services
+from . import order_events, ordering, rate_limit, services
 from .client import client_from_settings
 from .delivery import send_replies
 from .locks import CustomerLockTimeout, customer_lock
@@ -41,6 +42,13 @@ logger = logging.getLogger(__name__)
 
 MAX_LOCK_RETRIES = 3
 LOCK_RETRY_COUNTDOWN_SECONDS = 2
+# A backend outage while handling a pushed order event is retried (nothing was sent yet).
+ORDER_EVENT_MAX_RETRIES = 3
+ORDER_EVENT_RETRY_COUNTDOWN_SECONDS = 30
+# What Celery shows for the order-event task's arguments (its received/succeeded/failed log
+# lines): nothing from the event. The broker payload itself still carries the fields, because
+# the task needs them.
+ORDER_EVENT_KWARGSREPR = repr({"fields": "<masked>"})
 
 
 def enqueue(message_pk: int, message: InboundMessage) -> None:
@@ -198,3 +206,64 @@ def process_inbound_inline(
 def report_stalled() -> int:
     """Run every few minutes (Celery beat or ``manage.py report_stalled_messages``)."""
     return services.report_stalled_messages()
+
+
+# ---------------------------------------------------------------- order-status events
+
+
+def _order_event(fields: dict) -> OrderStatusChangeEvent:
+    from datetime import datetime
+
+    return OrderStatusChangeEvent(
+        event_id=fields["event_id"],
+        order_number=fields["order_number"],
+        customer_id=fields["customer_id"],
+        new_status=fields["new_status"],
+        occurred_at=datetime.fromisoformat(fields["occurred_at"]),
+    )
+
+
+def order_event_fields(event: OrderStatusChangeEvent) -> dict:
+    """The event as JSON-safe strings for a Celery task argument. No phone number: the
+    event only ever carries the backend's own IDs."""
+    return {
+        "event_id": event.event_id,
+        "order_number": event.order_number,
+        "customer_id": event.customer_id,
+        "new_status": event.new_status,
+        "occurred_at": event.occurred_at.isoformat(),
+    }
+
+
+def _handle_order_event(fields: dict) -> str:
+    return order_events.handle_event(
+        _order_event(fields), backend=get_engine().backend, client=client_from_settings()
+    )
+
+
+@shared_task(bind=True, name="whatsapp.notify_order_status", ignore_result=True)
+def notify_order_status(self, fields: dict) -> None:
+    try:
+        _handle_order_event(fields)
+    except BackendUnavailable as exc:
+        # Raised before anything was sent, so retrying cannot notify twice.
+        if self.request.retries < ORDER_EVENT_MAX_RETRIES:
+            raise self.retry(
+                countdown=ORDER_EVENT_RETRY_COUNTDOWN_SECONDS, max_retries=ORDER_EVENT_MAX_RETRIES
+            ) from exc
+        order_events.finish(fields["event_id"], order_events.Outcome.BACKEND_UNAVAILABLE)
+        logger.error(
+            "order event not sent: event=%s reason=backend_unavailable", fields["event_id"]
+        )
+
+
+def notify_order_status_inline(fields: dict) -> None:
+    """Synchronous equivalent for ``IVA_INLINE_PROCESSING`` (development only). No retry
+    without a broker: a backend outage is recorded as the final outcome."""
+    try:
+        _handle_order_event(fields)
+    except BackendUnavailable:
+        order_events.finish(fields["event_id"], order_events.Outcome.BACKEND_UNAVAILABLE)
+        logger.error(
+            "order event not sent: event=%s reason=backend_unavailable", fields["event_id"]
+        )

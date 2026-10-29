@@ -59,6 +59,9 @@ class Session:
     payment_url: str | None = None
     # Variant IDs resolved from a received plan's picks, awaiting "Add all to cart".
     plan_picks: list[str] = field(default_factory=list)
+    # Order number of the reorder just applied to the cart; cleared by any other cart change.
+    # It only turns a repeated tap into "show the cart" instead of adding the items again.
+    reorder_applied: str | None = None
     # Short tokens for backend IDs that do not fit a reply ID.
     refs: dict[str, str] = field(default_factory=dict)
 

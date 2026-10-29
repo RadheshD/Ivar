@@ -47,7 +47,7 @@ MESSAGES = {
     "menu.body": 'మీకు ఏమి కావాలి? టైప్ కూడా చేయవచ్చు, ఉదా. "స్నాక్స్ చూపించు" లేదా "నా ఆర్డర్".',
     "menu.button": "మెనూ",
     "menu.cart": "కార్ట్ చూడండి",
-    "menu.orders": "నా ఆర్డర్",
+    "menu.orders": "నా ఆర్డర్లు",
     "menu.help": "సహాయం",
     "menu.language": "భాష మార్చండి",
     "menu.diet": "ఆహార ప్రాధాన్యత",
@@ -155,7 +155,7 @@ MESSAGES = {
     "payment.REFUNDED": "ఆర్డర్ {order} పేమెంట్ తిరిగి ఇవ్వబడింది.",
     "payment.unknown": "ఆర్డర్ {order} పేమెంట్ స్థితి: {status}.",
     # ------------------------------------------------------------------ orders
-    "order.none": "మీకు ఇంకా ఆర్డర్లు లేవు.",
+    "order.none": "మీరు ఇంకా ఏ ఆర్డర్ చేయలేదు. ప్రారంభించడానికి మెనూ చూడండి!",
     "order.not_found": "ఆర్డర్ {order} కనిపించలేదు.",
     "order.status": "ఆర్డర్ {order}: {status}.",
     "order.payment": "పేమెంట్: {status}.",
@@ -163,6 +163,27 @@ MESSAGES = {
     "order.eta_na": "డెలివరీ సమయం: ఇంకా అందుబాటులో లేదు.",
     "order.tracking": "ట్రాకింగ్ ID: {tracking}.",
     "order.tracking_na": "ట్రాకింగ్: ఇంకా అందుబాటులో లేదు.",
+    "orders.title": "మీ ఇటీవలి ఆర్డర్లు. వివరాలు చూడటానికి ఒకటి ఎంచుకోండి.",
+    "orders.row_desc": "{date} · {total} · {status}",
+    "order.detail_title": "ఆర్డర్ {order} · {date}",
+    "order.line": "• {name} × {qty} = {total}",
+    "order.total": "మొత్తం: {total}",
+    "order.lines_note": "ధరలు ఆర్డర్ చేసిన సమయంలోనివి.",
+    "order.lines_na": "ఈ ఆర్డర్ ఐటెమ్ వివరాలు అందుబాటులో లేవు.",
+    "reorder.preview": "ఆర్డర్ {order} లోని వస్తువులు:",
+    "reorder.line": "• {name} × {qty} = {total}",
+    "reorder.unavailable": "ప్రస్తుతం అందుబాటులో లేవు (చేర్చబడవు): {names}.",
+    "reorder.price_title": "మీ ఆర్డర్ తర్వాత ధర మారింది:",
+    "reorder.price_line": "• {name}: {old} → {new}",
+    "reorder.nothing": "ఈ వస్తువులేవీ ప్రస్తుతం అందుబాటులో లేవు, కాబట్టి మీ కార్ట్ మారలేదు.",
+    "reorder.cart_has_items": "మీ కార్ట్ లో ఇప్పటికే {count} వస్తువులు ఉన్నాయి. ఏం చేయాలి?",
+    "reorder.replaced": "మీ కార్ట్ లో ఇప్పుడు ఆర్డర్ {order} వస్తువులు ఉన్నాయి.",
+    "reorder.added": "ఆర్డర్ {order} వస్తువులు మీ కార్ట్ కు చేర్చబడ్డాయి.",
+    "reorder.cancelled": "సరే, ఏమీ మారలేదు.",
+    "reorder.no_lines": "క్షమించండి, ఈ ఆర్డర్ ను మళ్లీ చేయలేను.",
+    "btn.reorder": "మళ్లీ ఆర్డర్",
+    "btn.replace_cart": "కార్ట్ మార్చు",
+    "btn.add_current": "ఉన్నదానికి జోడించు",
     "status.order.PENDING": "పెండింగ్",
     "status.order.CONFIRMED": "నిర్ధారించబడింది",
     "status.order.PROCESSING": "సిద్ధమవుతోంది",
@@ -170,6 +191,19 @@ MESSAGES = {
     "status.order.OUT_FOR_DELIVERY": "డెలివరీకి బయలుదేరింది",
     "status.order.DELIVERED": "డెలివరీ అయింది",
     "status.order.CANCELLED": "రద్దు చేయబడింది",
+    "notify.order_status.PENDING": "మీ ఆర్డర్ {order} మాకు అందింది. నిర్ధారణ కోసం ఎదురుచూస్తోంది.",
+    "notify.order_status.CONFIRMED": "మీ ఆర్డర్ {order} నిర్ధారించబడింది.",
+    "notify.order_status.PROCESSING": "మీ ఆర్డర్ {order} సిద్ధమవుతోంది.",
+    "notify.order_status.PACKED": "మీ ఆర్డర్ {order} ప్యాక్ చేయబడింది.",
+    "notify.order_status.OUT_FOR_DELIVERY": "మీ ఆర్డర్ {order} డెలివరీకి బయలుదేరింది.",
+    "notify.order_status.DELIVERED": "మీ ఆర్డర్ {order} డెలివరీ అయింది.",
+    "notify.order_status.CANCELLED": "మీ ఆర్డర్ {order} రద్దు చేయబడింది.",
+    "notify.footer": 'వివరాల కోసం "order status" అని పంపండి, లేదా ఈ సందేశాలు ఆపడానికి "ఆర్డర్ అప్డేట్స్ ఆపు" అని పంపండి.',
+    "notify.stopped": (
+        'సరే, ఇకపై ఇక్కడ ఆర్డర్ అప్డేట్స్ రావు. మళ్లీ ఆన్ చేయడానికి "ఆర్డర్ అప్డేట్స్ ప్రారంభించు" '
+        'అని పంపండి. మీరు ఎప్పుడైనా "order status" అడగవచ్చు.'
+    ),
+    "notify.resumed": "ఆర్డర్ అప్డేట్స్ మళ్లీ ఆన్ అయ్యాయి.",
     "status.payment.PENDING": "పెండింగ్",
     "status.payment.PAID": "చెల్లించబడింది",
     "status.payment.FAILED": "విఫలమైంది",
@@ -279,6 +313,24 @@ CART_WORDS = (
 ORDER_STATUS_WORDS = (
     "ఆర్డర్ స్టేటస్", "నా ఆర్డర్", "ఆర్డర్ ట్రాక్ చేయి", "నా ఆర్డర్ ఎక్కడ ఉంది",
     "naa order", "order status", "order track cheyyi",
+)  # fmt: skip
+ORDER_HISTORY_WORDS = (
+    "నా ఆర్డర్లు", "ఆర్డర్ హిస్టరీ", "ఆర్డర్లు", "naa orders", "order history", "orders",
+    "పాత ఆర్డర్లు", "గత ఆర్డర్లు", "paata orders", "past orders",
+)  # fmt: skip
+# Needs native-speaker review, like all Telugu text.
+REORDER_WORDS = (
+    "మళ్లీ ఆర్డర్", "మళ్ళీ ఆర్డర్", "చివరి ఆర్డర్ మళ్లీ చేయి",
+    "malli order", "last order malli cheyyi", "reorder",
+)  # fmt: skip
+# Needs native-speaker review, like all Telugu text.
+STOP_UPDATES_WORDS = (
+    "అప్డేట్స్ ఆపు", "ఆర్డర్ అప్డేట్స్ ఆపు", "నోటిఫికేషన్లు ఆపు",
+    "updates aapu", "order updates aapu", "notifications aapu",
+)  # fmt: skip
+RESUME_UPDATES_WORDS = (
+    "అప్డేట్స్ ప్రారంభించు", "ఆర్డర్ అప్డేట్స్ ప్రారంభించు", "నోటిఫికేషన్లు ప్రారంభించు",
+    "updates start cheyyi", "order updates start cheyyi", "notifications start cheyyi",
 )  # fmt: skip
 HELP_WORDS = ("సహాయం", "సహాయము", "హెల్ప్", "sahayam", "sahaayam", "help")
 LANGUAGE_WORDS = ("భాష", "భాష మార్చు", "భాష మార్చండి", "bhasha", "bhasha marchu", "language")

@@ -45,7 +45,7 @@ MESSAGES = {
     "menu.body": 'What would you like? You can also type, e.g. "show snacks" or "my order".',
     "menu.button": "Menu",
     "menu.cart": "View cart",
-    "menu.orders": "My order",
+    "menu.orders": "My orders",
     "menu.help": "Help",
     "menu.language": "Change language",
     "menu.diet": "Food preference",
@@ -153,7 +153,7 @@ MESSAGES = {
     "payment.REFUNDED": "Payment for order {order} has been refunded.",
     "payment.unknown": "Payment status for order {order}: {status}.",
     # ------------------------------------------------------------------ orders
-    "order.none": "You don't have any orders yet.",
+    "order.none": "You haven't placed an order yet. Browse the menu to get started!",
     "order.not_found": "I couldn't find order {order}.",
     "order.status": "Order {order}: {status}.",
     "order.payment": "Payment: {status}.",
@@ -161,6 +161,27 @@ MESSAGES = {
     "order.eta_na": "Delivery time: not available yet.",
     "order.tracking": "Tracking ID: {tracking}.",
     "order.tracking_na": "Tracking: not available yet.",
+    "orders.title": "Your recent orders. Tap one to see details.",
+    "orders.row_desc": "{date} · {total} · {status}",
+    "order.detail_title": "Order {order} · {date}",
+    "order.line": "• {name} × {qty} = {total}",
+    "order.total": "Total: {total}",
+    "order.lines_note": "Prices are as at the time of the order.",
+    "order.lines_na": "Item details aren't available for this order.",
+    "reorder.preview": "Reorder from {order}:",
+    "reorder.line": "• {name} × {qty} = {total}",
+    "reorder.unavailable": "Not available right now (won't be added): {names}.",
+    "reorder.price_title": "Price changed since your order:",
+    "reorder.price_line": "• {name}: {old} → {new}",
+    "reorder.nothing": "None of those items are available right now, so your cart is unchanged.",
+    "reorder.cart_has_items": "Your cart already has {count} item(s). What would you like to do?",
+    "reorder.replaced": "Your cart now has the items from order {order}.",
+    "reorder.added": "Added the items from order {order} to your cart.",
+    "reorder.cancelled": "OK, nothing changed.",
+    "reorder.no_lines": "Sorry, I can't reorder that one.",
+    "btn.reorder": "Reorder",
+    "btn.replace_cart": "Replace cart",
+    "btn.add_current": "Add to current",
     "status.order.PENDING": "pending",
     "status.order.CONFIRMED": "confirmed",
     "status.order.PROCESSING": "being prepared",
@@ -168,6 +189,19 @@ MESSAGES = {
     "status.order.OUT_FOR_DELIVERY": "out for delivery",
     "status.order.DELIVERED": "delivered",
     "status.order.CANCELLED": "cancelled",
+    "notify.order_status.PENDING": "We've received your order {order}. It's waiting to be confirmed.",
+    "notify.order_status.CONFIRMED": "Your order {order} is confirmed.",
+    "notify.order_status.PROCESSING": "Your order {order} is being prepared.",
+    "notify.order_status.PACKED": "Your order {order} is packed.",
+    "notify.order_status.OUT_FOR_DELIVERY": "Your order {order} is out for delivery.",
+    "notify.order_status.DELIVERED": "Your order {order} has been delivered.",
+    "notify.order_status.CANCELLED": "Your order {order} has been cancelled.",
+    "notify.footer": 'Reply "order status" for details, or "stop order updates" to stop these messages.',
+    "notify.stopped": (
+        'OK, you won\'t get order updates here any more. Say "resume order updates" to turn '
+        'them back on. You can still ask for "order status" any time.'
+    ),
+    "notify.resumed": "Order updates are back on.",
     "status.payment.PENDING": "pending",
     "status.payment.PAID": "paid",
     "status.payment.FAILED": "failed",
@@ -278,8 +312,27 @@ CART_WORDS = (
     "open cart", "basket", "my basket", "view basket",
 )  # fmt: skip
 ORDER_STATUS_WORDS = (
-    "order status", "my order", "my orders", "track order", "track my order",
+    "order status", "my order", "track order", "track my order",
     "where is my order",
+)  # fmt: skip
+# Whole-message requests for the list of past orders (checked before the intent layer).
+ORDER_HISTORY_WORDS = (
+    "my orders", "order history", "orders", "past orders", "previous orders", "old orders",
+)  # fmt: skip
+# Whole-message requests to repeat the most recent order (checked before the intent layer).
+REORDER_WORDS = (
+    "reorder", "re order", "order again", "repeat last order", "repeat my last order",
+    "repeat order", "repeat the last order",
+)  # fmt: skip
+# Whole-message phrases to stop / resume pushed order updates (checked before the intent
+# layer). Bare "stop" is NOT here: it already means "back to the menu" (ESCAPE_WORDS).
+STOP_UPDATES_WORDS = (
+    "stop updates", "stop order updates", "stop notifications", "stop order notifications",
+    "no more updates",
+)  # fmt: skip
+RESUME_UPDATES_WORDS = (
+    "resume updates", "resume order updates", "start updates", "start order updates",
+    "resume notifications", "start notifications",
 )  # fmt: skip
 HELP_WORDS = ("help", "support", "help me")
 LANGUAGE_WORDS = ("language", "change language", "switch language", "set language")

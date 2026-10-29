@@ -169,4 +169,22 @@ class OutCTA:
             raise ValueError("CTA URL must be https.")
 
 
-Outbound = OutText | OutButtons | OutList | OutCTA | OutProductCard | OutCarousel
+@dataclass(frozen=True)
+class OutTemplate:
+    """A pre-approved WhatsApp template message, the only kind allowed outside the 24-hour
+    customer-service window. ``name`` comes from settings (never guessed); the optional body
+    parameters fill the template's numbered variables in order."""
+
+    name: str
+    language_code: str
+    body_parameters: tuple[str, ...] = ()
+    key: str | None = None
+
+    def __post_init__(self):
+        if not self.name or not all(ch.islower() or ch.isdigit() or ch == "_" for ch in self.name):
+            raise ValueError("Template names are lowercase letters, digits and underscores.")
+        if not self.language_code:
+            raise ValueError("A template needs a language code.")
+
+
+Outbound = OutText | OutButtons | OutList | OutCTA | OutProductCard | OutCarousel | OutTemplate

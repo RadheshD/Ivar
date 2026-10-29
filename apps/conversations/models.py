@@ -16,9 +16,41 @@ class Conversation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_inbound_at = models.DateTimeField(null=True, blank=True)
     last_outbound_at = models.DateTimeField(null=True, blank=True)
+    # The customer's choice about pushed order-status notifications (typed "stop order
+    # updates" / "resume order updates"). On by default; a plain flag, no customer text.
+    order_updates_enabled = models.BooleanField(default=True)
 
     def __str__(self) -> str:
         return f"Conversation {self.pk} ({self.wa_id_masked})"
+
+
+class OrderEventRecord(models.Model):
+    """One pushed order-status event, stored once (the unique ``event_id`` is the idempotency
+    guard: a redelivery can never notify twice). Holds the backend's own IDs only: no phone
+    number, name or address. Not subject to the message-retention purge, which would
+    re-open the door to a duplicate."""
+
+    class Outcome(models.TextChoices):
+        RECEIVED = "received", "Received, not yet handled"
+        SENT_FREE_FORM = "sent_free_form", "Sent as a free-form message"
+        SENT_TEMPLATE = "sent_template", "Sent as a template message"
+        UNDELIVERED_NO_TEMPLATE = "undelivered_no_template", "Outside window, no template"
+        OPTED_OUT = "opted_out", "Customer stopped order updates"
+        SUPERSEDED = "superseded", "Order no longer in that status"
+        UNKNOWN_CUSTOMER = "unknown_customer", "Customer not found"
+        UNKNOWN_ORDER = "unknown_order", "Order not found for the customer"
+        SEND_FAILED = "send_failed", "WhatsApp send failed"
+        BACKEND_UNAVAILABLE = "backend_unavailable", "Backend unavailable"
+
+    event_id = models.CharField(max_length=128, unique=True)
+    order_number = models.CharField(max_length=64)
+    new_status = models.CharField(max_length=32)
+    outcome = models.CharField(max_length=32, choices=Outcome.choices, default=Outcome.RECEIVED)
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"OrderEvent {self.pk} {self.new_status} {self.outcome}"
 
 
 class ConversationMessage(models.Model):

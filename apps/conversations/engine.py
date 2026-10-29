@@ -34,6 +34,7 @@ from apps.ai.pipeline import IntentPipeline, pipeline_from_settings
 from apps.ai.text import normalize
 from apps.iva_common.money import format_money
 
+from . import order_updates
 from .adapters import get_backend
 from .address_check import looks_like_address
 from .backend_port import (
@@ -50,12 +51,19 @@ from .backend_port import (
     InvalidQuantity,
     NotAuthorized,
     NotFound,
+    OrderDetail,
     OrderStatusView,
     PaymentStatus,
     ProductSummary,
     ProductUnavailable,
 )
-from .catalog_order import PORT_MAX_QUANTITY, ValidatedOrder, effective_cap, validate_order
+from .catalog_order import (
+    PORT_MAX_QUANTITY,
+    OrderLine,
+    ValidatedOrder,
+    effective_cap,
+    validate_order,
+)
 from .channel import (
     MAX_CAROUSEL_CARDS,
     MAX_ROWS,
@@ -79,11 +87,17 @@ from .messages import (
     HELP_WORDS,
     LANGUAGE_WORDS,
     NO_WORDS,
+    ORDER_HISTORY_WORDS,
     ORDER_STATUS_WORDS,
+    REORDER_WORDS,
+    RESUME_UPDATES_WORDS,
+    STOP_UPDATES_WORDS,
     YES_WORDS,
     t,
 )
 from .recommend_flow import RecommendFlow
+from .renderers import INTERACTIVE_BODY_MAX
+from .reorder import plan_reorder
 from .state import Session, SessionStore, SessionStoreError, State, store_from_settings
 
 logger = logging.getLogger(__name__)
@@ -124,6 +138,9 @@ _CONFIRMABLE = (
     Intent.LANGUAGE_SELECT,
 )
 _KNOWN_PAYMENT = {s.value for s in PaymentStatus}
+HISTORY_LIMIT = 5
+# Fixed English month names: the date never depends on the server's locale.
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 _LLM_CART_INTENTS = (Intent.ADD_TO_CART, Intent.REMOVE_FROM_CART, Intent.UPDATE_QUANTITY)
 
 
@@ -467,6 +484,13 @@ class ConversationEngine(RecommendFlow):
                 return command
             return self._address_typed(c, text)
 
+        if text and normalize(text) in ORDER_HISTORY_WORDS:
+            return self._order_history(c)  # an exact "my orders": no intent layer, no model
+        if text and normalize(text) in REORDER_WORDS:
+            return self._reorder_latest(c)  # likewise exact: "reorder", "repeat last order"
+        if text and normalize(text) in STOP_UPDATES_WORDS | RESUME_UPDATES_WORDS:
+            return self._order_updates_choice(c, normalize(text) in RESUME_UPDATES_WORDS)
+
         if text and c.session.pending is None and state in self._LLM_STATES and self._yes_no(text):
             return self._stale_answer(
                 c
@@ -722,6 +746,13 @@ class ConversationEngine(RecommendFlow):
                 return self._diet_prompt(c)
             if arg in (*DIETS, "skip"):
                 return self._set_diet(c, arg)
+        elif name == "orders":
+            return self._order_history(c)
+        elif name == "reorder" and arg:
+            order_number = self._reorder_order_number(c, arg)
+            return self._reorder_start(c, order_number) if order_number else [self._fallback(c)]
+        elif name in ("reorder_add", "reorder_replace", "reorder_cancel") and arg:
+            return self._reorder_choice(c, name.removeprefix("reorder_"), arg)
         elif name == "more":
             return self._more(c)
         elif name == "showall":
@@ -792,7 +823,7 @@ class ConversationEngine(RecommendFlow):
         rows = [Row(self._reply(c, Intent.CATEGORY_SELECT, g.id), g.name) for g in groups]
         rows += [
             Row(Intent.VIEW_CART.value, t(c.lang, "menu.cart")),
-            Row(Intent.ORDER_STATUS.value, t(c.lang, "menu.orders")),
+            Row(f"{ACT}orders", t(c.lang, "menu.orders")),
             Row(Intent.HELP.value, t(c.lang, "menu.help")),
             Row(Intent.LANGUAGE_SELECT.value, t(c.lang, "menu.language")),
             Row(f"{ACT}diet", t(c.lang, "menu.diet")),
@@ -1685,6 +1716,7 @@ class ConversationEngine(RecommendFlow):
     def _cart_changed(self, c: _Turn) -> None:
         c.session.idempotency_key = None  # a changed cart is a new checkout attempt
         c.session.pending = None
+        c.session.reorder_applied = None
 
     def _add(self, c: _Turn, variant_id: str, quantity: int) -> list[Outbound]:
         cart = self.backend.add_item(c.customer.id, variant_id, quantity)
@@ -1813,6 +1845,12 @@ class ConversationEngine(RecommendFlow):
             return [OutButtons(body, buttons, "checkout.welcome_back")]
         if folded in CART_WORDS:
             return self._show_cart(c)
+        if folded in ORDER_HISTORY_WORDS:
+            return self._order_history(c)
+        if folded in REORDER_WORDS:
+            return self._reorder_latest(c)
+        if folded in STOP_UPDATES_WORDS | RESUME_UPDATES_WORDS:
+            return self._order_updates_choice(c, folded in RESUME_UPDATES_WORDS)
         if folded in ORDER_STATUS_WORDS:
             return self._order_status(c, None)
         if folded in HELP_WORDS:
@@ -1946,10 +1984,75 @@ class ConversationEngine(RecommendFlow):
     def _format_time(value) -> str:
         return timezone.localtime(value).strftime("%d-%m-%Y %H:%M")
 
+    @staticmethod
+    def _format_date(value) -> str:
+        local = timezone.localtime(value)  # the project's time zone (settings.TIME_ZONE)
+        return f"{local.day} {_MONTHS[local.month - 1]} {local.year}"
+
+    def _order_history(self, c: _Turn) -> list[Outbound]:
+        """The customer's latest orders: none -> a friendly note, one -> its detail, several
+        -> a list. Every word shown comes from the Port."""
+        c.session.pending = None
+        views = list(self.backend.list_recent_orders(c.customer.id, limit=HISTORY_LIMIT))
+        views = views[:HISTORY_LIMIT]
+        if not views:
+            return self._no_order(c, None)
+        if len(views) == 1:
+            return self._order_status(c, views[0].order_number)
+        rows = tuple(
+            Row(
+                self._reply(c, Intent.ORDER_STATUS, view.order_number),
+                view.order_number,
+                self._history_row_text(c, view),
+            )
+            for view in views
+        )
+        body = t(c.lang, "orders.title")
+        return [OutList(body, t(c.lang, "list.choose"), rows, "orders.title")]
+
+    def _history_row_text(self, c: _Turn, view: OrderStatusView) -> str:
+        status = self._status_name(c, "order", view.order_status)
+        if view.placed_at is None or view.total is None or not view.currency:
+            return status  # the backend did not say: show only what it did
+        return t(
+            c.lang,
+            "orders.row_desc",
+            date=self._format_date(view.placed_at),
+            total=self._money(view.total, view.currency),
+            status=status,
+        )
+
+    def _order_detail_lines(
+        self, c: _Turn, view: OrderStatusView, detail: OrderDetail | None
+    ) -> list[str]:
+        """Date, items at order-time prices and total: only what the Port stored."""
+        lines: list[str] = []
+        placed = (detail.placed_at if detail else None) or view.placed_at
+        if placed is not None:
+            date = self._format_date(placed)
+            lines.append(t(c.lang, "order.detail_title", order=view.order_number, date=date))
+        currency = (detail.currency if detail else None) or view.currency
+        for line in detail.lines if detail else ():
+            total = self._money(line.line_total, currency or "INR")
+            lines.append(t(c.lang, "order.line", name=line.name, qty=line.quantity, total=total))
+        if not (detail and detail.lines):
+            lines.append(t(c.lang, "order.lines_na"))
+        total = detail.total if detail else view.total
+        if total is not None and currency:
+            lines.append(t(c.lang, "order.total", total=self._money(total, currency)))
+        if detail and detail.lines:
+            lines.append(t(c.lang, "order.lines_note"))
+        return lines
+
     def _order_status(self, c: _Turn, order_number: str | None) -> list[Outbound]:
         view, asked = self._find_order(c, order_number)
         if view is None:
             return self._no_order(c, asked)
+        try:
+            detail = self.backend.get_order_detail(c.customer.id, view.order_number)
+        except NotAuthorized:
+            return self._no_order(c, view.order_number)  # never reveal another customer's order
+        detail_lines = self._order_detail_lines(c, view, detail)
         lines = [
             t(
                 c.lang,
@@ -1977,7 +2080,18 @@ class ConversationEngine(RecommendFlow):
                 ),
                 *buttons,
             )
-        return [OutButtons("\n".join(lines), buttons, "order.status")]
+        if detail is not None and detail.lines:  # nothing to reorder without stored lines
+            reorder_id = f"{ACT}reorder:{self._ref(c, view.order_number)}"
+            buttons = (Button(reorder_id, t(c.lang, "btn.reorder")), *buttons)
+        everything = "\n".join([*detail_lines, *lines])
+        if len(everything) <= INTERACTIVE_BODY_MAX:
+            return [OutButtons(everything, buttons, "order.status")]
+        # Too long for one buttons message (a long order): the items go first as plain text,
+        # so the status, payment, delivery and tracking lines are never cut off.
+        return [
+            OutText("\n".join(detail_lines), "order.detail_title"),
+            OutButtons("\n".join(lines), buttons, "order.status"),
+        ]
 
     def _payment_status(self, c: _Turn, order_number: str | None) -> list[Outbound]:
         s = c.session
@@ -2004,6 +2118,178 @@ class ConversationEngine(RecommendFlow):
             self._menu_button(c),
         )
         return [OutButtons("\n".join(lines), buttons, key)]
+
+    # ------------------------------------------------------------------ reorder
+
+    def _reorder_order_number(self, c: _Turn, ref: str) -> str | None:
+        """The order number carried by a reorder reply ID, or ``None`` if it is not a plain
+        order number (a crafted ID is never echoed or looked up)."""
+        order_number = self._unref(c, ref)
+        return order_number if order_number and _REF_RE.match(order_number) else None
+
+    def _reorder_plan(self, c: _Turn, order_number: str):
+        """``(plan, None)``, or ``(None, reply)`` when there is nothing to plan: an unknown or
+        foreign order is "not found"; an order with no stored lines cannot be reordered."""
+        try:
+            detail = self.backend.get_order_detail(c.customer.id, order_number)
+        except NotAuthorized:
+            detail = None  # never reveal that another customer's order exists
+        if detail is None:
+            return None, self._no_order(c, order_number)
+        if not detail.lines:
+            key = "reorder.no_lines"
+            return None, [OutButtons(t(c.lang, key), (self._menu_button(c),), key)]
+        return plan_reorder(self.backend, detail), None
+
+    def _reorder_nothing(self, c: _Turn) -> list[Outbound]:
+        key = "reorder.nothing"
+        return [OutButtons(t(c.lang, key), (self._menu_button(c),), key)]
+
+    def _order_updates_choice(self, c: _Turn, enabled: bool) -> list[Outbound]:
+        """Typed "stop order updates" / "resume order updates": saved per customer in the
+        database; pushed order-status notifications respect it before sending."""
+        c.session.pending = None
+        order_updates.set_updates_enabled(c.customer.whatsapp_id, enabled)
+        key = "notify.resumed" if enabled else "notify.stopped"
+        return [OutButtons(t(c.lang, key), (self._menu_button(c),), key)]
+
+    def _reorder_latest(self, c: _Turn) -> list[Outbound]:
+        """Typed "reorder" / "repeat last order": the most recent order, through the same
+        check-and-preview path as the Reorder button. No orders -> the friendly note."""
+        c.session.pending = None
+        views = list(self.backend.list_recent_orders(c.customer.id, limit=1))
+        if not views:
+            return self._no_order(c, None)
+        return self._reorder_start(c, views[0].order_number)
+
+    def _reorder_start(self, c: _Turn, order_number: str) -> list[Outbound]:
+        """Tap on Reorder: one tap into an empty cart when nothing differs, else a preview."""
+        plan, reply = self._reorder_plan(c, order_number)
+        if reply is not None:
+            return reply
+        cart = self.backend.get_cart(c.customer.id)
+        if cart.lines and c.session.reorder_applied == order_number:
+            return self._cart_messages(c, cart)  # a repeated tap: show the cart, add nothing
+        if not plan.lines:
+            return self._reorder_nothing(c)
+        if not cart.lines and not plan.differs:
+            return self._reorder_add(c, plan)
+        return self._reorder_preview(c, plan, cart)
+
+    def _reorder_choice(self, c: _Turn, mode: str, arg: str) -> list[Outbound]:
+        ref, _, fingerprint = arg.partition(":")
+        order_number = self._reorder_order_number(c, ref)
+        if order_number is None:
+            return [self._fallback(c)]
+        if mode == "cancel":
+            key = "reorder.cancelled"
+            buttons = (self._menu_button(c), self._button(c, Intent.VIEW_CART.value, "btn.cart"))
+            return [OutButtons(t(c.lang, key), buttons, key)]
+        plan, reply = self._reorder_plan(c, order_number)
+        if reply is not None:
+            return reply
+        cart = self.backend.get_cart(c.customer.id)
+        if mode == "add" and cart.lines and c.session.reorder_applied == order_number:
+            return self._cart_messages(c, cart)  # a repeated tap on Add: never add twice
+        if not plan.lines:
+            return self._reorder_nothing(c)
+        if plan.fingerprint((ln.variant_id, ln.quantity) for ln in cart.lines) != fingerprint:
+            return self._reorder_preview(c, plan, cart)  # it changed since the customer looked
+        if mode == "replace":
+            return self._reorder_replace(c, plan)
+        return self._reorder_add(c, plan)
+
+    def _reorder_preview(self, c: _Turn, plan, cart: CartView) -> list[Outbound]:
+        fingerprint = plan.fingerprint((ln.variant_id, ln.quantity) for ln in cart.lines)
+        ref = self._ref(c, plan.order_number)
+        lines = [t(c.lang, "reorder.preview", order=plan.order_number)]
+        for line in plan.lines:
+            total = self._money(line.total, line.currency)
+            lines.append(t(c.lang, "reorder.line", name=line.name, qty=line.quantity, total=total))
+        if plan.lines:
+            lines.append(t(c.lang, "order.total", total=self._money(plan.total, plan.currency)))
+        if plan.unavailable:
+            lines.append(t(c.lang, "reorder.unavailable", names="; ".join(plan.unavailable)))
+        if plan.price_changes:
+            lines.append(t(c.lang, "reorder.price_title"))
+            for line in plan.price_changes:
+                old = self._money(line.old_price, plan.currency)
+                new = self._money(line.unit_price, line.currency)
+                lines.append(t(c.lang, "reorder.price_line", name=line.name, old=old, new=new))
+        if plan.clamped:
+            names = "; ".join(plan.clamped)
+            lines.append(t(c.lang, "order.clamped", max=plan.cap, names=names))
+        add_id = f"{ACT}reorder_add:{ref}:{fingerprint}"
+        cancel = Button(f"{ACT}reorder_cancel:{ref}", t(c.lang, "btn.cancel"))
+        question = None
+        if cart.lines:
+            question = t(c.lang, "reorder.cart_has_items", count=len(cart.lines))
+            buttons = (
+                Button(f"{ACT}reorder_replace:{ref}:{fingerprint}", t(c.lang, "btn.replace_cart")),
+                Button(add_id, t(c.lang, "btn.add_current")),
+                cancel,
+            )
+        else:
+            buttons = (Button(add_id, t(c.lang, "btn.add_to_cart")), cancel)
+        body = "\n".join([*lines, question] if question else lines)
+        if len(body) <= INTERACTIVE_BODY_MAX:
+            return [OutButtons(body, buttons, "reorder.preview")]
+        # Too long for one buttons message: the lines go first as plain text, so the question
+        # and the buttons are never cut off.
+        return [
+            OutText("\n".join(lines), "reorder.preview.details"),
+            OutButtons(question or lines[0], buttons, "reorder.preview"),
+        ]
+
+    def _reorder_notes(self, c: _Turn, plan, unavailable: list[str], bad_quantity: int):
+        notes: list[Outbound] = []
+        if unavailable:
+            notes.append(self._text(c, "reorder.unavailable", names="; ".join(unavailable)))
+        if bad_quantity:
+            notes.append(self._text(c, "order.excluded_quantity", count=bad_quantity))
+        if plan.clamped:
+            names = "; ".join(plan.clamped)
+            notes.append(self._text(c, "order.clamped", max=plan.cap, names=names))
+        return notes
+
+    def _reorder_done(self, c: _Turn, plan, key: str, notes: list[Outbound]) -> list[Outbound]:
+        self._cart_changed(c)
+        c.session.reorder_applied = plan.order_number  # set after _cart_changed, which clears it
+        cart = self.backend.get_cart(c.customer.id)
+        done = self._text(c, key, order=plan.order_number)
+        return [done, *notes, *self._cart_messages(c, cart)]
+
+    def _reorder_add(self, c: _Turn, plan) -> list[Outbound]:
+        """Add every planned line with ``add_item`` (it merges into a line already in the cart).
+        A line that fails is reported and skipped; the others still go in."""
+        added, unavailable, bad_quantity = 0, [], 0
+        for line in plan.lines:
+            try:
+                self.backend.add_item(c.customer.id, line.variant_id, line.quantity)
+            except (ProductUnavailable, NotFound):
+                unavailable.append(line.name)
+            except InvalidQuantity:
+                bad_quantity += 1
+            else:
+                added += 1
+        if not added:
+            return self._reorder_nothing(c)
+        notes = self._reorder_notes(c, plan, unavailable, bad_quantity)
+        return self._reorder_done(c, plan, "reorder.added", notes)
+
+    def _reorder_replace(self, c: _Turn, plan) -> list[Outbound]:
+        """Make the cart hold exactly the planned lines, with the existing ``_replace_cart``
+        pattern: lines are updated or added first and the rest removed last, and nothing is
+        removed unless at least one line went in, so the cart is never left empty."""
+        result = ValidatedOrder(cap=plan.cap)
+        result.lines = [
+            OrderLine(ln.product_id, ln.name, ln.variant_id, ln.quantity) for ln in plan.lines
+        ]
+        added = self._replace_cart(c, result)
+        if not added:
+            return self._reorder_nothing(c)
+        notes = self._reorder_notes(c, plan, result.unavailable, 0)
+        return self._reorder_done(c, plan, "reorder.replaced", notes)
 
 
 # --------------------------------------------------------------------------- shared engine

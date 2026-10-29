@@ -37,6 +37,16 @@ Semantics that the contract tests (``tests/contract/``) enforce
 * ``OrderStatusView.events`` are oldest first. Order-status events use the
   ``OrderStatus`` values; payment events use ``PAYMENT_<PaymentStatus>``
   (e.g. ``PAYMENT_PAID``).
+
+Push events (backend -> channel; not a port operation)
+------------------------------------------------------
+The backend PUSHES ``OrderStatusChangeEvent`` messages to the channel when an order's
+status changes; the channel never polls. See ``OrderStatusChangeEvent`` and
+``parse_order_status_change`` below, and ARCHITECTURE.md ("Order status notifications").
+(Not to be confused with ``OrderStatusEvent``, the history entry in
+``OrderStatusView.events``.) Before pushing, the backend must already return the new status
+from ``get_order``: the channel re-reads the order and does not notify for an event the
+order no longer matches.
 """
 
 from __future__ import annotations
@@ -169,6 +179,62 @@ class CheckoutResult:
 class OrderStatusEvent:
     status: str
     at: datetime
+
+
+# Push contract: the backend tells the channel an order's status changed.
+EVENT_ID_MAX = 128
+_EVENT_FIELDS = ("event_id", "order_number", "customer_id", "new_status", "occurred_at")
+_EVENT_ID_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-")
+
+
+class InvalidOrderEvent(ValueError):
+    """A pushed event does not meet the contract. The message never echoes the input."""
+
+
+@dataclass(frozen=True)
+class OrderStatusChangeEvent:
+    """``new_status`` is an ``OrderStatus`` value. ``event_id`` is unique per status change and
+    is reused verbatim when the backend redelivers it (the channel notifies at most once per
+    ``event_id``). ``customer_id`` is the backend's ID, never a phone number."""
+
+    event_id: str
+    order_number: str
+    customer_id: str
+    new_status: str
+    occurred_at: datetime
+
+
+def _event_token(data: dict, key: str, max_length: int) -> str:
+    value = data[key]
+    if (
+        not isinstance(value, str)
+        or not 1 <= len(value) <= max_length
+        or not set(value) <= _EVENT_ID_CHARS
+    ):
+        raise InvalidOrderEvent(f"Invalid {key}.")
+    return value
+
+
+def parse_order_status_change(data: object) -> OrderStatusChangeEvent:
+    """Validate a decoded JSON object strictly: exactly the five fields, each well formed,
+    ``new_status`` a known ``OrderStatus``, ``occurred_at`` an ISO-8601 time WITH a zone.
+    Raises ``InvalidOrderEvent`` (never anything else, never with the input in the text)."""
+    if not isinstance(data, dict) or set(data) != set(_EVENT_FIELDS):
+        raise InvalidOrderEvent("Wrong fields.")
+    event_id = _event_token(data, "event_id", EVENT_ID_MAX)
+    order_number = _event_token(data, "order_number", 64)
+    customer_id = _event_token(data, "customer_id", 64)
+    status = data["new_status"]
+    if not isinstance(status, str) or status not in {s.value for s in OrderStatus}:
+        raise InvalidOrderEvent("Invalid new_status.")
+    raw_time = data["occurred_at"]
+    try:
+        occurred_at = datetime.fromisoformat(raw_time) if isinstance(raw_time, str) else None
+    except ValueError:
+        occurred_at = None
+    if occurred_at is None or occurred_at.tzinfo is None:
+        raise InvalidOrderEvent("Invalid occurred_at.")
+    return OrderStatusChangeEvent(event_id, order_number, customer_id, status, occurred_at)
 
 
 @dataclass(frozen=True)

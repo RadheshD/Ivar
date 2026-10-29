@@ -13,6 +13,7 @@ from .channel import (
     OutCTA,
     OutList,
     OutProductCard,
+    OutTemplate,
     OutText,
 )
 
@@ -20,6 +21,7 @@ TEXT_BODY_MAX = 4096
 INTERACTIVE_BODY_MAX = 1024
 BUTTON_TITLE_MAX = 20
 CAROUSEL_CARD_BODY_MAX = 160
+TEMPLATE_PARAM_MAX = 1024
 LIST_BUTTON_MAX = 20
 ROW_TITLE_MAX = 24
 ROW_DESCRIPTION_MAX = 72
@@ -147,6 +149,19 @@ def render(message: Outbound) -> dict:
                 },
             },
         }
+    if isinstance(message, OutTemplate):
+        template: dict = {"name": message.name, "language": {"code": message.language_code}}
+        if message.body_parameters:
+            template["components"] = [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": truncate(p, TEMPLATE_PARAM_MAX)}
+                        for p in message.body_parameters
+                    ],
+                }
+            ]
+        return {"type": "template", "template": template}
     raise TypeError("Unknown outbound message type.")
 
 

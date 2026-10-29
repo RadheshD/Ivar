@@ -37,6 +37,10 @@ IVA_FAKE_BACKEND_STATE_FILE = ""
 IVA_WEBSITE_SHOP_URL = ""
 IVA_CATALOG_ID = ""
 
+# Forced regardless of the developer's .env: order-event tests opt in with override_settings.
+IVA_ORDER_EVENTS_SECRET = ""
+IVA_ORDER_STATUS_TEMPLATES = {}
+
 # Forced off regardless of the developer's .env: the suite never calls Groq.
 IVA_LLM_ENABLED = False
 GROQ_API_KEY = ""

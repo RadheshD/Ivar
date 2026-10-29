@@ -225,7 +225,7 @@ check with a real WhatsApp client and Meta's test phone number. Do not automate 
 **Conversations to try**
 
 - [ ] First message ("hi"): the very first reply greets you by your WhatsApp profile
-      name (e.g. "Hi Radhesh! 👋 Welcome to Ivar!") if you have one set, or a
+      name (e.g. "Hi [Name]! 👋 Welcome to Ivar!") if you have one set, or a
       name-free "Welcome to Ivar!" if not, followed by the trilingual "Please choose
       your language" line and the three language buttons; pick English.
 - [ ] Onboarding: with `IVA_PLANNER_URL` set, a planner message ("Our AI Planner can

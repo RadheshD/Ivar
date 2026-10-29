@@ -106,7 +106,8 @@ def test_a_paid_order_does_not_offer_payment_status(chat, backend, lang):
     chat.send(CATALOG_PHRASE[lang])
     assert chat.keys == ["order.status"]
     assert t(lang, "btn.payment_status") not in _button_titles(chat)
-    assert _button_titles(chat) == [t(lang, "btn.menu")]  # the other button stays
+    # Reorder (new) and Menu stay; Payment status is gone
+    assert _button_titles(chat) == [t(lang, "btn.reorder"), t(lang, "btn.menu")]
 
 
 CATALOG_PHRASE = {"en": "where is my order", "te": "నా ఆర్డర్ ఎక్కడ ఉంది", "hi": "मेरा ऑर्डर कहाँ है"}
@@ -116,7 +117,11 @@ def test_an_unpaid_order_still_offers_payment_status(chat):
     onboard(chat)
     checkout_to_payment(chat)
     chat.send("where is my order")
-    assert _button_titles(chat) == [t("en", "btn.payment_status"), t("en", "btn.menu")]
+    assert _button_titles(chat) == [
+        t("en", "btn.reorder"),
+        t("en", "btn.payment_status"),
+        t("en", "btn.menu"),
+    ]
 
 
 # ------------------------------------------------------------------ B5: dead ends
