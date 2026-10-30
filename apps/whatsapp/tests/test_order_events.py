@@ -408,6 +408,22 @@ def test_a_template_for_another_status_or_language_is_never_substituted(meta, te
     assert outcome() == Outcome.UNDELIVERED_NO_TEMPLATE
 
 
+def test_an_unusable_template_name_ends_as_send_failed_not_received(meta, caplog):
+    customer, order = make_order("en")
+    window(False)
+    bad = {"CONFIRMED": {"en": "Not-A-Valid-Name"}}  # bypasses the startup check on purpose
+    with caplog.at_level(logging.DEBUG), override_settings(IVA_ORDER_STATUS_TEMPLATES=bad):
+        response = push(order, customer)
+    assert response.status_code == 200
+    assert meta.requests == []
+    assert outcome() == Outcome.SEND_FAILED
+    assert OrderEventRecord.objects.get(event_id="evt-1").finished_at is not None
+    assert any("reason=invalid_template" in r.getMessage() for r in caplog.records)
+    ours = " ".join(r.getMessage() for r in caplog.records if r.name == order_events.logger.name)
+    assert "Not-A-Valid-Name" not in caplog.text
+    assert order not in ours  # (the Fake Backend's own dev log lines are not ours)
+
+
 def test_the_window_boundary_is_twenty_four_hours(meta):
     customer, order = make_order()
     conversation = services.conversation_for(WA_ID)

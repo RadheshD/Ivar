@@ -169,6 +169,15 @@ class OutCTA:
             raise ValueError("CTA URL must be https.")
 
 
+def is_valid_template_name(name: object) -> bool:
+    """Template names are lowercase letters, digits and underscores (WhatsApp's own rule)."""
+    return (
+        isinstance(name, str)
+        and bool(name)
+        and all(ch.islower() or ch.isdigit() or ch == "_" for ch in name)
+    )
+
+
 @dataclass(frozen=True)
 class OutTemplate:
     """A pre-approved WhatsApp template message, the only kind allowed outside the 24-hour
@@ -181,7 +190,7 @@ class OutTemplate:
     key: str | None = None
 
     def __post_init__(self):
-        if not self.name or not all(ch.islower() or ch.isdigit() or ch == "_" for ch in self.name):
+        if not is_valid_template_name(self.name):
             raise ValueError("Template names are lowercase letters, digits and underscores.")
         if not self.language_code:
             raise ValueError("A template needs a language code.")

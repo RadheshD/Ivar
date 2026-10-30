@@ -8,6 +8,14 @@ from pathlib import Path
 import environ
 from django.core.exceptions import ImproperlyConfigured
 
+# Host -> apps is the allowed direction. Both modules import only the standard library (no
+# models, no Django), so loading them while settings load creates no import cycle.
+from apps.conversations.backend_port import LANGUAGES as _IVA_LANGUAGES  # not Django's LANGUAGES
+from apps.conversations.backend_port import OrderStatus
+from apps.conversations.channel import is_valid_template_name
+
+_ORDER_STATUSES = frozenset(s.value for s in OrderStatus)
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
@@ -162,6 +170,24 @@ def _parse_order_templates(raw: str) -> dict:
     if not ok:
         raise ImproperlyConfigured(
             'IVA_ORDER_STATUS_TEMPLATES_JSON must look like {"STATUS": {"en": "template_name"}}.'
+        )
+    # Spelling is checked here, at startup, so a typo is never a silent "no template".
+    # The messages name the problem, never the configured value.
+    if any(status not in _ORDER_STATUSES for status in data):
+        raise ImproperlyConfigured(
+            "IVA_ORDER_STATUS_TEMPLATES_JSON has a status key that is not an order status "
+            "(exact, upper-case, e.g. OUT_FOR_DELIVERY)."
+        )
+    if any(lang not in _IVA_LANGUAGES for by_lang in data.values() for lang in by_lang):
+        raise ImproperlyConfigured(
+            "IVA_ORDER_STATUS_TEMPLATES_JSON has a language key that is not one of "
+            + ", ".join(_IVA_LANGUAGES)
+            + "."
+        )
+    if not all(is_valid_template_name(v) for by_lang in data.values() for v in by_lang.values()):
+        raise ImproperlyConfigured(
+            "IVA_ORDER_STATUS_TEMPLATES_JSON has a template name that is not lowercase "
+            "letters, digits and underscores."
         )
     return data
 

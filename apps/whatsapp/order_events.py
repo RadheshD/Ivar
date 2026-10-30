@@ -117,9 +117,16 @@ def handle_event(
                 event.event_id, event.new_status,
             )  # fmt: skip
             return _done(event, Outcome.UNDELIVERED_NO_TEMPLATE)
-        message = OutTemplate(
-            name, language, (event.order_number,), key=f"notify.template.{event.new_status}"
-        )
+        try:
+            message = OutTemplate(
+                name, language, (event.order_number,), key=f"notify.template.{event.new_status}"
+            )
+        except ValueError:  # an unusable configured name: never leave the event "received"
+            logger.error(
+                "order event not sent: event=%s status=%s reason=invalid_template",
+                event.event_id, event.new_status,
+            )  # fmt: skip
+            return _done(event, Outcome.SEND_FAILED)
         success = Outcome.SENT_TEMPLATE
 
     results = send_replies(wa_id, [message], client=client)
