@@ -49,6 +49,19 @@ MESSAGES = {
     "menu.help": "Help",
     "menu.language": "Change language",
     "menu.diet": "Food preference",
+    # Main menu sections, row descriptions and the live cart line (limits: row/section title 24,
+    # description 72). Not translated rows keep their titles.
+    "menu.section.order": "Order",
+    "menu.section.yours": "Your orders",
+    "menu.section.more": "More",
+    "menu.desc.fresh": "Bowls, café favourites, wellness shots",
+    "menu.desc.packaged": "Teas, energy bites, protein and more",
+    "menu.desc.plan": "Get a plan from our AI planner",
+    "menu.desc.orders": "Past orders, payment status, reorder",
+    "menu.cart_desc.one": "1 item · {subtotal}",
+    "menu.cart_desc.many": "{n} items · {subtotal}",
+    "menu.cart_desc.empty": "Cart is empty",
+    "menu.cart_desc.static": "See what's in your cart",
     "help": (
         "I can help you browse products, add them to your cart, check out and see your "
         'order and payment status. Try "show snacks", "add 2 makhana" or '

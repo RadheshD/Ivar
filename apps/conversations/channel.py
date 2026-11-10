@@ -157,11 +157,19 @@ class OutList:
     rows: tuple[Row, ...]
     key: str | None = None
     section_title: str | None = None
+    # Optional titled sections. ``rows`` must still hold every row (the same rows, in order),
+    # so code that reads ``rows`` keeps working. WhatsApp allows 10 rows in total, and every
+    # section needs a title when there is more than one.
+    sections: tuple[tuple[str, tuple[Row, ...]], ...] = ()
 
     def __post_init__(self):
         if not 1 <= len(self.rows) <= MAX_ROWS:
             raise ValueError(f"A list message needs 1 to {MAX_ROWS} rows.")
         _unique_ids(self.rows)
+        if self.sections:
+            flat = tuple(row for _, rows in self.sections for row in rows)
+            if flat != self.rows or any(not rows or not title for title, rows in self.sections):
+                raise ValueError("Sections must be titled, non-empty, and hold exactly the rows.")
 
 
 @dataclass(frozen=True)

@@ -231,6 +231,10 @@ IVA_WELCOME_BANNER_FILE = env.str(
 if IVA_WELCOME_BANNER_FILE and not Path(IVA_WELCOME_BANNER_FILE).is_absolute():
     IVA_WELCOME_BANNER_FILE = str(BASE_DIR / IVA_WELCOME_BANNER_FILE)
 
+# The main menu list is sent in titled sections with short row descriptions and a live cart
+# line. false restores the old single flat list (rollback switch).
+IVA_MENU_SECTIONS_ENABLED = env.bool("IVA_MENU_SECTIONS_ENABLED", default=True)
+
 # --------------------------------------------------------------------------- LLM (intent layer)
 # Groq LLM fallback (apps/ai). OFF by default. Runs only when the rules cannot understand a
 # free-text message. GROQ_API_KEY comes from the environment only; never log or print it.

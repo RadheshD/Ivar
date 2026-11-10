@@ -69,6 +69,8 @@ IVA_PRODUCT_IMAGE_BASE_URL = ""
 # Same reasoning: the welcome banner is off in tests whatever the developer's .env says.
 IVA_WELCOME_BANNER_URL = ""
 IVA_WELCOME_BANNER_FILE = ""  # no file, so no upload, in any test unless it opts in
+# The sectioned menu is on in tests, whatever the developer's .env says.
+IVA_MENU_SECTIONS_ENABLED = True
 
 # Real-Redis tests (session store, per-customer lock) use this prefix in place of the
 # dev/prod "iva:" one, so a test run can never read, overwrite or leave behind dev keys

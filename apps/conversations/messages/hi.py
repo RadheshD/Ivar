@@ -53,6 +53,18 @@ MESSAGES = {
     "menu.help": "मदद",
     "menu.language": "भाषा बदलें",
     "menu.diet": "खाने की पसंद",
+    # Main menu sections, descriptions and cart line. DRAFT: needs native-speaker review.
+    "menu.section.order": "ऑर्डर करें",
+    "menu.section.yours": "आपके ऑर्डर",
+    "menu.section.more": "और",
+    "menu.desc.fresh": "बाउल, कैफ़े फ़ेवरेट्स, वेलनेस शॉट्स",
+    "menu.desc.packaged": "चाय, एनर्जी बाइट्स, प्रोटीन और बहुत कुछ",
+    "menu.desc.plan": "हमारे AI प्लानर से अपनी योजना पाएं",
+    "menu.desc.orders": "पुराने ऑर्डर, पेमेंट स्टेटस, दोबारा ऑर्डर",
+    "menu.cart_desc.one": "1 आइटम · {subtotal}",
+    "menu.cart_desc.many": "{n} आइटम · {subtotal}",
+    "menu.cart_desc.empty": "कार्ट खाली है",
+    "menu.cart_desc.static": "देखें कार्ट में क्या है",
     "help": (
         "मैं उत्पाद देखने, कार्ट में जोड़ने, चेकआउट करने और आपके ऑर्डर व पेमेंट की स्थिति "
         'जानने में मदद कर सकता हूँ। "स्नैक्स दिखाओ", "2 मखाना जोड़ो" या "मेरा ऑर्डर कहाँ है" '

@@ -52,6 +52,18 @@ MESSAGES = {
     "menu.help": "సహాయం",
     "menu.language": "భాష మార్చండి",
     "menu.diet": "ఆహార ప్రాధాన్యత",
+    # Main menu sections, descriptions and cart line. DRAFT: needs native-speaker review.
+    "menu.section.order": "ఆర్డర్ చేయండి",
+    "menu.section.yours": "మీ ఆర్డర్లు",
+    "menu.section.more": "మరిన్ని",
+    "menu.desc.fresh": "బౌల్స్, కేఫ్ ఫేవరెట్స్, వెల్‌నెస్ షాట్స్",
+    "menu.desc.packaged": "టీలు, ఎనర్జీ బైట్స్, ప్రోటీన్ మరియు మరిన్ని",
+    "menu.desc.plan": "మా AI ప్లానర్ నుండి మీ ప్లాన్ పొందండి",
+    "menu.desc.orders": "పాత ఆర్డర్లు, పేమెంట్ స్టేటస్, మళ్లీ ఆర్డర్",
+    "menu.cart_desc.one": "1 వస్తువు · {subtotal}",
+    "menu.cart_desc.many": "{n} వస్తువులు · {subtotal}",
+    "menu.cart_desc.empty": "కార్ట్ ఖాళీగా ఉంది",
+    "menu.cart_desc.static": "మీ కార్ట్‌లో ఏముందో చూడండి",
     "help": (
         "ఉత్పత్తులు చూడటం, కార్ట్‌లో చేర్చడం, చెక్అవుట్ చేయడం, మీ ఆర్డర్ మరియు పేమెంట్ "
         'స్థితి తెలుసుకోవడంలో సహాయం చేస్తాను. "స్నాక్స్ చూపించు", "2 మఖానా యాడ్ చేయి" లేదా '

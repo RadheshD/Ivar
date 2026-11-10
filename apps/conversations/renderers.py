@@ -113,18 +113,25 @@ def render(message: Outbound) -> dict:
             },
         }
     if isinstance(message, OutList):
-        rows = []
-        for row in message.rows:
+
+        def list_row(row) -> dict:
             item = {
                 "id": _checked_id(row.id, ROW_ID_MAX),
                 "title": truncate(row.title, ROW_TITLE_MAX),
             }
             if row.description:
                 item["description"] = truncate(row.description, ROW_DESCRIPTION_MAX)
-            rows.append(item)
-        section = {"rows": rows}
+            return item
+
+        section = {"rows": [list_row(row) for row in message.rows]}
         if message.section_title:
             section["title"] = truncate(message.section_title, SECTION_TITLE_MAX)
+        sections = [section]
+        if message.sections:  # titled sections (every one needs a title when there are several)
+            sections = [
+                {"title": truncate(title, SECTION_TITLE_MAX), "rows": [list_row(r) for r in rows]}
+                for title, rows in message.sections
+            ]
         return {
             "type": "interactive",
             "interactive": {
@@ -132,7 +139,7 @@ def render(message: Outbound) -> dict:
                 "body": {"text": truncate(message.body, INTERACTIVE_BODY_MAX)},
                 "action": {
                     "button": truncate(message.button, LIST_BUTTON_MAX),
-                    "sections": [section],
+                    "sections": sections,
                 },
             },
         }

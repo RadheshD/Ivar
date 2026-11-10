@@ -20,6 +20,7 @@ import time
 import unicodedata
 import uuid
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from urllib.parse import urlparse
 
@@ -121,6 +122,19 @@ HINTS_TTL_SECONDS = 300
 MAX_HINT_PRODUCTS = 500
 MAX_MENU_GROUPS = 4
 MENU_FIXED_ROWS = 5  # cart, orders, help, language, diet
+# The main menu's sections, in display order: (title key, row keys). Row keys are the ones
+# ``_main_menu`` builds ("group" stands for every category group). ``MENU_FLAT_ORDER`` is the
+# order of the old single flat list, used when IVA_MENU_SECTIONS_ENABLED is off.
+MENU_SECTIONS = (
+    ("menu.section.order", ("group", "plan")),
+    ("menu.section.yours", ("cart", "orders")),
+    ("menu.section.more", ("diet", "language", "help", "website")),
+)
+MENU_FLAT_ORDER = ("group", "cart", "orders", "help", "language", "diet", "plan", "website")
+# Description of a category-group row, by the group's Port ID (other groups get none).
+MENU_GROUP_DESCRIPTIONS = {"fresh": "menu.desc.fresh", "packaged": "menu.desc.packaged"}
+MENU_CART_TIMEOUT_SECONDS = 1.5  # the live cart line may never hold the menu up longer
+_MENU_CART_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="iva-menu-cart")
 NAME_MAX = 60
 ADDRESS_MIN = 10
 ADDRESS_MAX = 300
@@ -895,32 +909,86 @@ class ConversationEngine(RecommendFlow):
 
     # ------------------------------------------------------------------ menu & browsing
 
+    def _menu_cart_description(self, c: _Turn) -> str:
+        """The View cart row's live line ("3 items · ₹1,148", or "Cart is empty") from the same
+        Port lookup the cart view uses. Any failure or a slow Port gives a plain static line:
+        the menu is always sent."""
+        timeout = float(
+            getattr(settings, "IVA_MENU_CART_TIMEOUT_SECONDS", MENU_CART_TIMEOUT_SECONDS)
+        )
+        future = None
+        try:
+            future = _MENU_CART_POOL.submit(self.backend.get_cart, c.customer.id)
+            cart = future.result(timeout=timeout)
+            if not cart.lines:
+                return t(c.lang, "menu.cart_desc.empty")
+            count = sum(line.quantity for line in cart.lines)
+            subtotal = self._money(cart.subtotal, cart.currency)
+            if count == 1:
+                return t(c.lang, "menu.cart_desc.one", subtotal=subtotal)
+            return t(c.lang, "menu.cart_desc.many", n=count, subtotal=subtotal)
+        except Exception as exc:  # a failed or slow lookup must never stop the menu
+            if future is not None:
+                future.cancel()
+            logger.warning("engine: menu cart line unavailable error=%s", type(exc).__name__)
+            return t(c.lang, "menu.cart_desc.static")
+
     def _main_menu(self, c: _Turn) -> list[Outbound]:
+        """THE main menu: the only place it is built (welcome, welcome back, the Menu button,
+        after an order, the fallbacks all call this). Row IDs and what they do never change here;
+        only titles, descriptions, sections and order do. ``IVA_MENU_SECTIONS_ENABLED=false``
+        restores the old flat list (no sections, no descriptions)."""
         s = c.session
         s.state = State.MAIN_MENU
         s.listing = None
-        # 5 fixed rows + up to 2 optional link rows; category groups take what is left of
-        # WhatsApp's 10-row limit.
-        links = [
-            Row(f"{ACT}{act}", t(c.lang, key))
-            for act, key, url in (
-                ("plan", "btn.planner", self._planner_url()),
-                ("website", "menu.website", self._website_url()),
-            )
-            if url
-        ]
-        group_slots = min(MAX_MENU_GROUPS, MAX_ROWS - MENU_FIXED_ROWS - len(links))
+        sectioned = bool(getattr(settings, "IVA_MENU_SECTIONS_ENABLED", True))
+
+        def desc(key: str) -> str | None:
+            return t(c.lang, key) if sectioned else None
+
+        # Hidden today by their URL settings: "plan" (IVA_PLANNER_URL), "website"
+        # (IVA_WEBSITE_SHOP_URL). Category groups take what is left of WhatsApp's 10 rows.
+        plan_on, website_on = bool(self._planner_url()), bool(self._website_url())
+        group_slots = min(MAX_MENU_GROUPS, MAX_ROWS - MENU_FIXED_ROWS - plan_on - website_on)
         groups = self.backend.list_categories(None)[:group_slots]
-        rows = [Row(self._reply(c, Intent.CATEGORY_SELECT, g.id), g.name) for g in groups]
-        rows += [
-            Row(Intent.VIEW_CART.value, t(c.lang, "menu.cart")),
-            Row(f"{ACT}orders", t(c.lang, "menu.orders")),
-            Row(Intent.HELP.value, t(c.lang, "menu.help")),
-            Row(Intent.LANGUAGE_SELECT.value, t(c.lang, "menu.language")),
-            Row(f"{ACT}diet", t(c.lang, "menu.diet")),
-        ]
-        rows += links
-        return [OutList(t(c.lang, "menu.body"), t(c.lang, "menu.button"), tuple(rows), "menu.body")]
+        by_key: dict[str, list[Row]] = {
+            "group": [
+                Row(
+                    self._reply(c, Intent.CATEGORY_SELECT, g.id),
+                    g.name,
+                    desc(MENU_GROUP_DESCRIPTIONS[g.id])
+                    if g.id in MENU_GROUP_DESCRIPTIONS
+                    else None,
+                )
+                for g in groups
+            ],
+            "cart": [
+                Row(
+                    Intent.VIEW_CART.value,
+                    t(c.lang, "menu.cart"),
+                    self._menu_cart_description(c) if sectioned else None,
+                )
+            ],
+            "orders": [Row(f"{ACT}orders", t(c.lang, "menu.orders"), desc("menu.desc.orders"))],
+            "help": [Row(Intent.HELP.value, t(c.lang, "menu.help"))],
+            "language": [Row(Intent.LANGUAGE_SELECT.value, t(c.lang, "menu.language"))],
+            "diet": [Row(f"{ACT}diet", t(c.lang, "menu.diet"))],
+            "plan": [Row(f"{ACT}plan", t(c.lang, "btn.planner"), desc("menu.desc.plan"))]
+            if plan_on
+            else [],
+            "website": [Row(f"{ACT}website", t(c.lang, "menu.website"))] if website_on else [],
+        }
+        body, button = t(c.lang, "menu.body"), t(c.lang, "menu.button")
+        if not sectioned:
+            rows = tuple(row for key in MENU_FLAT_ORDER for row in by_key[key])
+            return [OutList(body, button, rows, "menu.body")]
+        sections = tuple(
+            (t(c.lang, title_key), tuple(row for key in keys for row in by_key[key]))
+            for title_key, keys in MENU_SECTIONS
+        )
+        sections = tuple((title, rows) for title, rows in sections if rows)  # never an empty one
+        rows = tuple(row for _, group in sections for row in group)
+        return [OutList(body, button, rows, "menu.body", sections=sections)]
 
     def _fallback(self, c: _Turn) -> OutButtons:
         buttons = (self._menu_button(c), self._button(c, Intent.HELP.value, "btn.help"))
