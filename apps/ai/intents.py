@@ -40,10 +40,22 @@ class Intent(StrEnum):
     # Never accepted from the LLM or a reply ID: the plan's fields are health-adjacent and
     # must only come from that strict parser, never be guessed or replayed via a button.
     PLAN_RECEIVED = "PLAN_RECEIVED"
+    # Produced only by the exact-match rules in apps.ai.closing (whole-message "thanks" /
+    # "bye"). Never accepted from the LLM or a reply ID: they must work with the model off,
+    # and a model must never be able to turn another message into a closing one.
+    THANKS = "THANKS"
+    BYE = "BYE"
+    # A bare "ok" / "cool". Also rules-only, and only the conversation engine decides whether
+    # it applies (never while a question is pending); the pipeline itself never returns it.
+    ACK = "ACK"
 
 
 # Intents the LLM may return.
-CLASSIFIABLE_INTENTS = tuple(i for i in Intent if i not in (Intent.CLARIFY, Intent.PLAN_RECEIVED))
+CLASSIFIABLE_INTENTS = tuple(
+    i
+    for i in Intent
+    if i not in (Intent.CLARIFY, Intent.PLAN_RECEIVED, Intent.THANKS, Intent.BYE, Intent.ACK)
+)
 # Extra intent NAMES the Groq classifier may return when the recommendation flow is on
 # (IVA_LLM_RECOMMEND_ENABLED). They are not members of ``Intent``: a recommendation result
 # is an ordinary read-only PRODUCT_SEARCH result that carries a ``RecommendRequest``.
@@ -127,6 +139,9 @@ RELEVANT_ENTITIES: dict[Intent, frozenset[str]] = {
     Intent.PAYMENT_STATUS: _ORDER_FIELDS,
     Intent.TRACKING: _ORDER_FIELDS,
     Intent.HELP: frozenset(),
+    Intent.THANKS: frozenset(),
+    Intent.BYE: frozenset(),
+    Intent.ACK: frozenset(),
     Intent.PLAN_RECEIVED: frozenset({"goal", "diet", "calories", "protein_g", "picks"}),
 }
 

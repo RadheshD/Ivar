@@ -24,7 +24,6 @@ ACCEPTED_KEYS = ["checkout.summary", "checkout.confirm"]
         "ok",
         "yes",
         "no",
-        "ok thanks",
         "no thanks please",
         "Hyderabad",  # a single word
         "asdfghjklqwerty",  # long, but a single word

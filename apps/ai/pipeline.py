@@ -18,7 +18,7 @@ from django.conf import settings
 
 from apps.iva_common.logging import mask_text
 
-from . import code_router, constraints, fuzzy, rules
+from . import closing, code_router, constraints, fuzzy, rules
 from .intents import (
     RECOMMEND_INTENT_NAMES,
     Entities,
@@ -148,6 +148,12 @@ class IntentPipeline:
                     intent, 1.0, Stage.BUTTON, keep_relevant(intent, entities), language
                 )
             logger.info("unrecognised reply id; falling back to text")
+
+        # 1b. A whole-message "thanks" / "bye": exact phrases in code, no model, no other stage.
+        # ACK ("ok") is not decided here: only the engine knows whether a question is pending.
+        closing_intent = closing.classify(text) if reply_id is None else None
+        if closing_intent in (Intent.THANKS, Intent.BYE):
+            return IntentResult(closing_intent, 1.0, Stage.RULES, Entities(), language)
 
         tokens = tokenize(constraints.prepare(text)) if text else []
         pair: frozenset[int] = frozenset()

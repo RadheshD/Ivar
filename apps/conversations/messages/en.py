@@ -54,6 +54,21 @@ MESSAGES = {
         'order and payment status. Try "show snacks", "add 2 makhana" or '
         '"where is my order". Type "menu" anytime.'
     ),
+    # Closing messages ("thanks" / "bye"). `_roman` variants are the romanized Hindi/Telugu
+    # text (used when the customer's language is hi/te and they typed in Latin letters);
+    # English has no separate form, so they repeat the English text.
+    "closing.thanks": "You're welcome, {name}! 😊 Anything else I can help with?",
+    "closing.thanks_noname": "You're welcome! 😊 Anything else I can help with?",
+    "closing.thanks_roman": "You're welcome, {name}! 😊 Anything else I can help with?",
+    "closing.thanks_roman_noname": "You're welcome! 😊 Anything else I can help with?",
+    "closing.bye": "Bye, {name}! 👋 Message me anytime you'd like to order.",
+    "closing.bye_noname": "Bye! 👋 Message me anytime you'd like to order.",
+    "closing.bye_roman": "Bye, {name}! 👋 Message me anytime you'd like to order.",
+    "closing.bye_roman_noname": "Bye! 👋 Message me anytime you'd like to order.",
+    "closing.ack": "👍 Anything else I can help with?",
+    "closing.ack_roman": "👍 Anything else I can help with?",
+    "closing.cart_saved": "Your cart is still saved.",
+    "closing.cart_saved_roman": "Your cart is still saved.",
     "fallback": "Sorry, I didn't understand that.",
     "fallback.hint": 'Try "show snacks" or type "menu".',
     "list.choose": "Choose",

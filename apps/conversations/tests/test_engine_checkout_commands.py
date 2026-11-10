@@ -191,7 +191,7 @@ def test_addresses_containing_command_words_are_accepted(chat, address):
 
 def test_short_junk_that_is_not_a_command_is_still_rejected_as_an_address(chat):
     at_address_step(chat)
-    chat.send("ok thanks")
+    chat.send("ok cool")
     assert chat.keys == ["checkout.address_invalid"]
 
 

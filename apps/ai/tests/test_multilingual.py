@@ -158,7 +158,8 @@ def test_table_covers_every_intent_in_every_style():
     # PLAN_RECEIVED is never understood from natural language in any style: it is
     # produced only by the deterministic "IVA PLAN v1" header parser (apps.ai.plan_message),
     # same as CLARIFY is pipeline-only.
-    excluded = (Intent.CLARIFY, Intent.PLAN_RECEIVED)
+    # THANKS / BYE / ACK are exact whole-message phrases with their own tests (test_closing*.py).
+    excluded = (Intent.CLARIFY, Intent.PLAN_RECEIVED, Intent.THANKS, Intent.BYE, Intent.ACK)
     expected = {(i, s) for i in Intent if i not in excluded for s in styles}
     assert covered == expected
 

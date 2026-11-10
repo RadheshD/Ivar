@@ -646,13 +646,25 @@ def test_a_bare_number_range_is_not_used_and_the_customer_is_told(chat_groq):
 # ---------------------------------------------------------------- K: stale and typed confirmations
 
 
-@pytest.mark.parametrize("text", ["Yes", "yes", "No", "ok", "haan", "avunu", "కాదు", "नहीं"])
+@pytest.mark.parametrize(
+    "text", ["Yes", "yes", "No", "haan", "avunu", "కాదు", "नहीं"]
+)  # "ok" is an ACK now
 def test_a_typed_yes_or_no_with_nothing_pending_gets_one_neutral_reply(chat_groq, text):
     chat, groq = chat_groq
     chat.send(text)
     assert chat.keys == ["stale.expired"] and groq.calls == 0 and cart_of(chat) == {}
     assert chat.last[0].body == "That question has expired. Please tell me what you'd like to do."
     assert [b.id for b in chat.last[0].buttons] == ["CATEGORY_SELECT"]
+
+
+@pytest.mark.parametrize("text", ["ok", "OK", "okay", "👍"])
+def test_a_bare_ok_with_nothing_pending_gets_the_ack_reply_not_the_stale_one(chat_groq, text):
+    # "ok" used to get stale.expired; it is now a light acknowledgement (rules only, no model,
+    # nothing touched), in every flag mode.
+    chat, groq = chat_groq
+    chat.send(text)
+    assert chat.keys == ["closing.ack"] and groq.calls == 0 and cart_of(chat) == {}
+    assert chat.last[0].body == "👍 Anything else I can help with?"
 
 
 @pytest.mark.parametrize("button", ["ACT:llmyes", "ACT:llmno"])

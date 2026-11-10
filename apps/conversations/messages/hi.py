@@ -57,6 +57,19 @@ MESSAGES = {
         'जानने में मदद कर सकता हूँ। "स्नैक्स दिखाओ", "2 मखाना जोड़ो" या "मेरा ऑर्डर कहाँ है" '
         'लिखकर देखें। कभी भी "मेन्यू" लिखें।'
     ),
+    # Closing messages. DRAFT: needs native-speaker review. `_roman` = Hinglish.
+    "closing.thanks": "आपका स्वागत है, {name}! 😊 क्या मैं और कुछ मदद कर सकता हूँ?",
+    "closing.thanks_noname": "आपका स्वागत है! 😊 क्या मैं और कुछ मदद कर सकता हूँ?",
+    "closing.thanks_roman": "Aapka swagat hai, {name}! 😊 Aur kuch help chahiye?",
+    "closing.thanks_roman_noname": "Aapka swagat hai! 😊 Aur kuch help chahiye?",
+    "closing.bye": "अलविदा, {name}! 👋 ऑर्डर करना हो तो कभी भी मुझे मैसेज करें।",
+    "closing.bye_noname": "अलविदा! 👋 ऑर्डर करना हो तो कभी भी मुझे मैसेज करें।",
+    "closing.bye_roman": "Bye, {name}! 👋 Jab bhi order karna ho, mujhe message kar dena.",
+    "closing.bye_roman_noname": "Bye! 👋 Jab bhi order karna ho, mujhe message kar dena.",
+    "closing.ack": "👍 क्या मैं और कुछ मदद कर सकता हूँ?",
+    "closing.ack_roman": "👍 Aur kuch help chahiye?",
+    "closing.cart_saved": "आपका कार्ट अभी भी सेव है।",
+    "closing.cart_saved_roman": "Aapka cart abhi bhi saved hai.",
     "fallback": "माफ़ कीजिए, मैं समझ नहीं पाया।",
     "fallback.hint": 'आप "स्नैक्स दिखाओ" आज़माएँ, या "मेन्यू" लिखें।',
     "list.choose": "चुनें",

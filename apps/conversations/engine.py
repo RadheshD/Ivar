@@ -26,12 +26,12 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.utils import timezone
 
-from apps.ai import llm_state
+from apps.ai import closing, llm_state
 from apps.ai.classifier import CatalogEntry, redact
 from apps.ai.intents import Entities, Intent, IntentResult, LLMItem, Stage, build_reply_id
 from apps.ai.llm_fallback import LLMContext
 from apps.ai.pipeline import IntentPipeline, pipeline_from_settings
-from apps.ai.text import normalize
+from apps.ai.text import is_indic, normalize
 from apps.iva_common.money import format_money
 
 from . import order_updates
@@ -471,6 +471,14 @@ class ConversationEngine(RecommendFlow):
 
         text = (inbound.text or "").strip()
         state = c.session.state
+        closing_intent = closing.classify(text) if text else None
+        if closing_intent is Intent.ACK and not self._ack_applies(c):
+            closing_intent = None  # "ok" may be an answer here: the existing handling runs
+        if closing_intent is not None:
+            # An exact whole-message "thanks" / "bye" (any state: also the address step,
+            # confirmation and payment) or a light "ok" (only where nothing is pending):
+            # one reply, nothing else touched.
+            return self._closing_reply(c, closing_intent, text)
         if text and state is State.ONBOARD_DIET:  # changing the preference later
             diet = self._diet_from_text(text)
             if diet:
@@ -514,7 +522,60 @@ class ConversationEngine(RecommendFlow):
         key = "stale.expired"
         return [OutButtons(t(c.lang, key), (self._menu_button(c),), key)]
 
+    # States where nothing is being asked, so a bare "ok" is only an acknowledgement. Address
+    # entry, confirmation, quantity, language and diet steps are NOT here: "ok" can answer them.
+    _ACK_STATES = frozenset(
+        {
+            State.NEW,
+            State.MAIN_MENU,
+            State.GROUP,
+            State.CATEGORY,
+            State.PRODUCT,
+            State.CART,
+            State.AWAITING_PAYMENT,
+        }
+    )
+
+    def _ack_applies(self, c: _Turn) -> bool:
+        return c.session.state in self._ACK_STATES and c.session.pending is None
+
+    def _closing_reply(self, c: _Turn, intent: Intent, text: str = "") -> list[Outbound]:
+        """The reply to "thanks" / "bye" / "ok". Read-only: it never changes the session (state,
+        pending question, address, order number) and never writes to the cart or an order.
+        THANKS and BYE say "your cart is still saved" only when the Port really holds items
+        for this customer (the cart lives in the Port keyed by customer, so it outlives the
+        session); ACK never says it."""
+        base = {Intent.THANKS: "closing.thanks", Intent.BYE: "closing.bye"}.get(
+            intent, "closing.ack"
+        )
+        # romanized text from a Hindi/Telugu customer gets the romanized (Hinglish/Tenglish) reply
+        roman = c.lang in ("hi", "te") and not is_indic(text)
+        suffix = "_roman" if roman else ""
+        if intent is Intent.ACK:
+            body = self._text(c, base + suffix).body
+        else:
+            body = self._named_text(c, base + suffix).body
+        buttons = [self._menu_button(c)]
+        try:
+            has_items = bool(self.backend.get_cart(c.customer.id).lines)
+        except Exception as exc:  # the reply must not fail because the cart could not be read
+            logger.warning("engine: closing cart check failed error=%s", type(exc).__name__)
+            has_items = False
+        if has_items:
+            if intent is not Intent.ACK:
+                body = f"{body}\n{t(c.lang, 'closing.cart_saved' + suffix)}"
+            buttons.append(self._button(c, Intent.VIEW_CART.value, "btn.cart"))
+        replies: list[Outbound] = [OutButtons(body, tuple(buttons), base)]
+        if intent is Intent.THANKS and c.session.state is State.CHECKOUT_ADDRESS:
+            # never an address: ask for the address again (same prompt, same state). Not after
+            # BYE: a goodbye is not followed by a question; the state stays, so a later "Hi"
+            # still offers to continue checkout.
+            replies.extend(self._start_checkout(c))
+        return replies
+
     def _intent(self, c: _Turn, r: IntentResult) -> list[Outbound]:
+        if r.intent in (Intent.THANKS, Intent.BYE):
+            return self._closing_reply(c, r.intent)  # before any pending question is cleared
         s = c.session
         e = r.entities
         pending, s.pending = s.pending, None
@@ -648,6 +709,13 @@ class ConversationEngine(RecommendFlow):
     def _onboarding(self, c: _Turn, inbound: Inbound) -> list[Outbound]:
         s = c.session
         if c.customer.language is None:
+            closing_intent = closing.classify(inbound.text) if inbound.text else None
+            if closing_intent in (Intent.THANKS, Intent.BYE):
+                # Language unknown: answer in English and touch nothing (no language set, the
+                # session state, and so the picker state, is left exactly as it was).
+                return self._closing_reply(c, closing_intent, inbound.text)
+            # ACK ("ok") is deliberately not handled here: the picker is waiting for a language
+            # answer, so an "ok" simply gets the picker again.
             result = self._understand(inbound)
             choice = (
                 result.entities.language_choice if result.intent is Intent.LANGUAGE_SELECT else None

@@ -56,6 +56,19 @@ MESSAGES = {
         'స్థితి తెలుసుకోవడంలో సహాయం చేస్తాను. "స్నాక్స్ చూపించు", "2 మఖానా యాడ్ చేయి" లేదా '
         '"నా ఆర్డర్ ఎక్కడ ఉంది" అని ప్రయత్నించండి. ఎప్పుడైనా "మెనూ" అని టైప్ చేయండి.'
     ),
+    # Closing messages. DRAFT: needs native-speaker review. `_roman` = Tenglish.
+    "closing.thanks": "మీకు స్వాగతం, {name}! 😊 ఇంకేమైనా సహాయం కావాలా?",
+    "closing.thanks_noname": "మీకు స్వాగతం! 😊 ఇంకేమైనా సహాయం కావాలా?",
+    "closing.thanks_roman": "Welcome, {name}! 😊 Inkemaina help kavala?",
+    "closing.thanks_roman_noname": "Welcome! 😊 Inkemaina help kavala?",
+    "closing.bye": "బై, {name}! 👋 ఆర్డర్ చేయాలనుకున్నప్పుడు ఎప్పుడైనా నాకు మెసేజ్ చేయండి.",
+    "closing.bye_noname": "బై! 👋 ఆర్డర్ చేయాలనుకున్నప్పుడు ఎప్పుడైనా నాకు మెసేజ్ చేయండి.",
+    "closing.bye_roman": "Bye, {name}! 👋 Order cheyalanukunnappudu eppudaina naaku message cheyandi.",
+    "closing.bye_roman_noname": "Bye! 👋 Order cheyalanukunnappudu eppudaina naaku message cheyandi.",
+    "closing.ack": "👍 ఇంకేమైనా సహాయం కావాలా?",
+    "closing.ack_roman": "👍 Inkemaina help kavala?",
+    "closing.cart_saved": "మీ కార్ట్ ఇంకా సేవ్ అయి ఉంది.",
+    "closing.cart_saved_roman": "Mee cart inka saved ga undi.",
     "fallback": "క్షమించండి, నాకు అర్థం కాలేదు.",
     "fallback.hint": 'మీరు "స్నాక్స్ చూపించు" ప్రయత్నించండి, లేదా "మెనూ" అని టైప్ చేయండి.',
     "list.choose": "ఎంచుకోండి",
