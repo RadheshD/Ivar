@@ -38,6 +38,16 @@ def error(status: int, code: int = 131000, headers=None) -> HttpResponse:
     return HttpResponse(status, json.dumps(body).encode(), headers or {})
 
 
+def _json_or_none(body):
+    """The request body as JSON, or ``None`` for a non-JSON one (a multipart media upload)."""
+    if not body:
+        return None
+    try:
+        return json.loads(body)
+    except ValueError:
+        return None
+
+
 class FakeTransport:
     """Scripted responses (or exceptions); records every request."""
 
@@ -53,7 +63,8 @@ class FakeTransport:
                 "method": method,
                 "url": url,
                 "headers": dict(headers or {}),
-                "json": json.loads(body) if body else None,
+                "json": _json_or_none(body),
+                "body": body,
                 "timeouts": (connect_timeout, read_timeout),
             }
         )

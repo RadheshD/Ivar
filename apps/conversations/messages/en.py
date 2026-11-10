@@ -5,12 +5,12 @@ MESSAGES = {
     "language.prompt": (
         "Welcome to Ivar! Please choose your language.\nదయచేసి మీ భాషను ఎంచుకోండి.\nकृपया अपनी भाषा चुनें।"
     ),
-    "language.prompt_greeting_named": (
-        "Hi {name}! 👋 Welcome to Ivar!\n"
-        "Please choose your language.\nదయచేసి మీ భాషను ఎంచుకోండి.\nकृपया अपनी भाषा चुनें।"
-    ),
-    "language.prompt_greeting_unnamed": (
-        "Welcome to Ivar!\nPlease choose your language.\nదయచేసి మీ భాషను ఎంచుకోండి.\nकृपया अपनी भाषा चुनें।"
+    # First-time picker: the language is not known yet, so one text serves every catalog.
+    # Line 2 names the action in all three languages. Telugu/Hindi: needs native-speaker review.
+    "language.prompt_greeting_named": "Hi {name}, welcome to Ivar.\nChoose your language · భాషను ఎంచుకోండి · भाषा चुनें",
+    "language.prompt_greeting_unnamed": "Hi, welcome to Ivar.\nChoose your language · భాషను ఎంచుకోండి · भाषा चुनें",
+    "language.set_first": (
+        "Language set to {lang_name}. You can change it anytime from the menu. What would you like?"
     ),
     "language.changed": "Done! I'll reply in English from now on.",
     "diet.ask": (

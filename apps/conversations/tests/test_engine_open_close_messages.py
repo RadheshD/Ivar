@@ -54,16 +54,17 @@ def test_greeting_and_welcome_back_with_a_name_are_unchanged(engine, store, lang
 def test_the_first_language_choice_is_confirmed_in_that_language(chat, lang):
     chat.send("hi")
     chat.tap(f"LANGUAGE_SELECT:{lang}")
-    assert chat.keys == ["language.changed", "menu.body"]
-    assert chat.message("language.changed").body == t(lang, "language.changed")
-    assert in_script(chat.message("menu.body").body, lang)
+    assert chat.keys == ["language.set_first"]  # one message: the confirmation + a Menu button
+    name = {"en": "English", "te": "తెలుగు", "hi": "हिन्दी"}[lang]
+    assert chat.message("language.set_first").body == t(lang, "language.set_first", lang_name=name)
+    assert in_script(chat.body.replace(name, ""), lang)
 
 
-def test_the_confirmation_comes_before_the_planner_intro(chat, settings):
+def test_the_confirmation_is_still_one_message_with_the_planner_configured(chat, settings):
     settings.IVA_PLANNER_URL = "https://planner.test.invalid/plan"
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:hi")
-    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.set_first"]
 
 
 def test_an_unclear_reply_to_the_language_question_is_not_confirmed(chat):

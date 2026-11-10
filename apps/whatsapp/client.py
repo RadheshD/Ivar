@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -106,6 +107,8 @@ class WhatsAppClient:
             raise ValueError("max_attempts must be at least 1.")
         self._token = access_token
         self.url = f"{base_url.rstrip('/')}/{api_version}/{phone_number_id}/messages"
+        self.media_url = f"{base_url.rstrip('/')}/{api_version}/{phone_number_id}/media"
+        self.phone_number_id = phone_number_id
         self._transport = transport or StdlibTransport()
         self._max_attempts = max_attempts
         self._backoff = backoff_seconds
@@ -164,6 +167,68 @@ class WhatsAppClient:
             )  # fmt: skip
             self._sleep(delay)
         raise AssertionError("unreachable")  # pragma: no cover
+
+    def upload_media(
+        self,
+        data: bytes,
+        mime_type: str,
+        filename: str,
+        *,
+        connect_timeout: float = 3.0,
+        read_timeout: float = 5.0,
+    ) -> str:
+        """Upload one file to this phone number's media endpoint and return its media ID.
+
+        A single attempt with short timeouts (no retries): the caller falls back to a
+        text-only message rather than make a customer wait. The token goes only in the
+        Authorization header; neither it nor the file is ever logged.
+        """
+        boundary = "----iva" + secrets.token_hex(16)
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", filename)[:80] or "file"
+        crlf = b"\r\n"
+        body = crlf.join(
+            [
+                f"--{boundary}".encode(),
+                b'Content-Disposition: form-data; name="messaging_product"',
+                b"",
+                b"whatsapp",
+                f"--{boundary}".encode(),
+                b'Content-Disposition: form-data; name="type"',
+                b"",
+                mime_type.encode(),
+                f"--{boundary}".encode(),
+                f'Content-Disposition: form-data; name="file"; filename="{safe_name}"'.encode(),
+                f"Content-Type: {mime_type}".encode(),
+                b"",
+                data,
+                f"--{boundary}--".encode(),
+                b"",
+            ]
+        )
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        }
+        try:
+            response = self._transport.request(
+                "POST",
+                self.media_url,
+                headers=headers,
+                body=body,
+                connect_timeout=connect_timeout,
+                read_timeout=read_timeout,
+            )
+        except HttpError as exc:
+            raise WhatsAppSendError(exc.kind, retryable=True) from None
+        if not 200 <= response.status < 300:
+            raise WhatsAppSendError("http", status=response.status, code=_error_code(response.body))
+        try:
+            media_id = json.loads(response.body)["id"]
+        except (ValueError, KeyError, TypeError):
+            raise WhatsAppSendError("invalid_response") from None
+        if not isinstance(media_id, str) or not media_id:
+            raise WhatsAppSendError("invalid_response")
+        return media_id
 
     @staticmethod
     def _message_id(body: bytes) -> str:

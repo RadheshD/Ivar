@@ -12,6 +12,10 @@ from dataclasses import dataclass
 
 MAX_BUTTONS = 3
 MAX_ROWS = 10
+# The abstract name of the welcome banner image. The engine only carries this name on the
+# first-time language picker; the WhatsApp delivery layer decides how the image reaches
+# WhatsApp (a public link, or a one-time media upload) or whether it is sent at all.
+WELCOME_BANNER_REF = "welcome_banner"
 MIN_CAROUSEL_CARDS = 2
 MAX_CAROUSEL_CARDS = 10
 MAX_CAROUSEL_BUTTONS = 2  # quick-reply buttons per media-carousel card
@@ -91,6 +95,11 @@ class OutProductCard:
     buttons: tuple[Button, ...]
     image_url: str | None = None
     key: str | None = None
+    # ``image_ref`` names an image the delivery layer resolves (see WELCOME_BANNER_REF);
+    # ``image_media_id`` is a WhatsApp media ID the delivery layer filled in. An
+    # ``image_media_id`` wins over ``image_url`` when rendering. The engine sets neither media ID.
+    image_ref: str | None = None
+    image_media_id: str | None = None
 
     def __post_init__(self):
         if not 1 <= len(self.buttons) <= MAX_BUTTONS:

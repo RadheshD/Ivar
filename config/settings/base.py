@@ -218,6 +218,19 @@ IVA_MESSAGE_RETENTION_DAYS = int(env.str("IVA_MESSAGE_RETENTION_DAYS", default="
 # Fake Backend itself re-checks the scheme; this is not otherwise validated here).
 IVA_PRODUCT_IMAGE_BASE_URL = env.str("IVA_PRODUCT_IMAGE_BASE_URL", default="")
 
+# Public https URL of the welcome banner (1200x628 PNG/JPEG, under 5 MB) shown as the image
+# header of the FIRST-TIME language picker. Sent as a URL, exactly like product card images
+# (WhatsApp fetches it). Unset, not https, or a failed send: the picker goes out text-only.
+IVA_WELCOME_BANNER_URL = env.str("IVA_WELCOME_BANNER_URL", default="")
+# Local banner file, used when IVA_WELCOME_BANNER_URL is unset: it is uploaded to WhatsApp once
+# (PNG or JPEG, under 5 MB) and the returned media ID is cached. Relative paths are resolved from
+# the project root. Empty disables the file (the picker is then text-only).
+IVA_WELCOME_BANNER_FILE = env.str(
+    "IVA_WELCOME_BANNER_FILE", default="Reference/ivar-welcome-banner.png"
+)
+if IVA_WELCOME_BANNER_FILE and not Path(IVA_WELCOME_BANNER_FILE).is_absolute():
+    IVA_WELCOME_BANNER_FILE = str(BASE_DIR / IVA_WELCOME_BANNER_FILE)
+
 # --------------------------------------------------------------------------- LLM (intent layer)
 # Groq LLM fallback (apps/ai). OFF by default. Runs only when the rules cannot understand a
 # free-text message. GROQ_API_KEY comes from the environment only; never log or print it.

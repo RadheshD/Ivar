@@ -18,6 +18,7 @@ def row_names(chat) -> set[str]:
 @pytest.mark.parametrize("lang", LANGUAGES)
 def test_browse_both_groups(chat, lang):
     onboard(chat, lang=lang)
+    chat.tap("CATEGORY_SELECT")  # the Menu button of the one-message confirmation
     menu = chat.ids
     assert menu[:2] == ["CATEGORY_SELECT:fresh", "CATEGORY_SELECT:packaged"]
 

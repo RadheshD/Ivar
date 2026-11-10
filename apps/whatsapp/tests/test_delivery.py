@@ -171,3 +171,32 @@ def test_if_the_fallback_cards_also_fail_delivery_stops():
     sent = send_replies(WA_ID, _carousel_replies(), client=client)
     assert len(sent) == 1 and not sent[0].ok
     assert len(transport.requests) == 2
+
+
+def test_welcome_banner_failure_falls_back_to_the_text_only_picker(settings):
+    banner = "https://cdn.example.invalid/ivar-welcome-banner.png"
+    settings.IVA_WELCOME_BANNER_URL = banner
+    transport = FakeTransport()
+    transport.responses = [error(400, code=131053)]  # media download error, then success
+    engine, client = make(transport)
+    replies = engine.handle(WA_ID, Inbound(text="Hi", profile_name="Ravi"))
+    sent = send_replies(WA_ID, replies, client=client)
+    assert [(s.template_key, s.ok) for s in sent] == [("language.prompt_greeting_named", True)]
+    first, second = (r["json"]["interactive"] for r in transport.requests)
+    assert first["header"] == {"type": "image", "image": {"link": banner}}
+    assert "header" not in second  # same body and buttons, no image
+    assert second["body"] == first["body"]
+    assert second["action"] == first["action"]
+
+
+def test_welcome_banner_is_sent_as_the_image_header_when_it_works(settings):
+    banner = "https://cdn.example.invalid/ivar-welcome-banner.png"
+    settings.IVA_WELCOME_BANNER_URL = banner
+    transport = FakeTransport()
+    engine, client = make(transport)
+    sent = deliver(WA_ID, Inbound(text="Hi"), engine=engine, client=client)
+    assert [(s.template_key, s.message_type) for s in sent] == [
+        ("language.prompt_greeting_unnamed", "button")
+    ]
+    [request] = transport.requests
+    assert request["json"]["interactive"]["header"]["image"]["link"] == banner

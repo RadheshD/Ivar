@@ -22,10 +22,7 @@ def test_new_customer_onboarding(chat, backend, lang):
     assert chat.ids == ["LANGUAGE_SELECT:en", "LANGUAGE_SELECT:te", "LANGUAGE_SELECT:hi"]
 
     chat.tap(f"LANGUAGE_SELECT:{lang}")
-    assert chat.keys == [
-        "language.changed",
-        "menu.body",
-    ]  # IVA_PLANNER_URL unset in tests: straight to menu
+    assert chat.keys == ["language.set_first"]  # ONE confirmation message with a Menu button
 
     customer = backend.get_or_create_customer(WA_ID)
     assert customer.onboarding_complete is True
@@ -58,13 +55,26 @@ def test_returning_customer_skips_onboarding(engine, store, lang):
 
 
 @pytest.mark.parametrize("lang", LANGUAGES)
-def test_welcome_cta_when_planner_configured(chat, settings, lang):
+def test_onboarding_confirmation_is_one_message_even_when_the_planner_is_configured(
+    chat, settings, lang
+):
+    # The planner intro used to follow the language choice (a welcome CTA + a browse button).
+    # Onboarding now ends with ONE message and a Menu button; the planner stays reachable from
+    # the main menu ("Plan my meals", tested below).
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi")
     chat.tap(f"LANGUAGE_SELECT:{lang}")
-    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.set_first"]
+    assert chat.ids == ["CATEGORY_SELECT"]
 
-    cta = chat.message("welcome.planner_intro")
+
+@pytest.mark.parametrize("lang", LANGUAGES)
+def test_planner_cta_message(chat, settings, lang):
+    settings.IVA_PLANNER_URL = PLANNER_URL
+    onboard(chat, lang)
+    chat.tap("ACT:plan")
+    assert chat.keys == ["planner.cta_body"]
+    cta = chat.message("planner.cta_body")
     assert isinstance(cta, OutCTA)
     assert cta.url == PLANNER_URL
     assert in_script(cta.body, lang)
@@ -79,14 +89,12 @@ def test_welcome_cta_when_planner_configured(chat, settings, lang):
             },
         },
     }
-    browse = chat.message("welcome.browse_prompt")
-    assert [b.id for b in browse.buttons] == ["CATEGORY_SELECT"]
 
 
 def test_first_message_greets_by_profile_name(chat, backend):
     chat.send("hi", profile_name="Ravi Kumar")
     assert chat.keys == ["language.prompt_greeting_named"]
-    assert chat.body.startswith("Hi Ravi Kumar! 👋")
+    assert chat.body.startswith("Hi Ravi Kumar, welcome to Ivar.")
     assert backend.get_or_create_customer(WA_ID).name == "Ravi Kumar"
 
 
@@ -101,7 +109,7 @@ def test_profile_name_is_saved_and_not_repeated_in_the_planner_message(chat, bac
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi", profile_name="Ravi Kumar")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.set_first"]
     assert "Ravi Kumar" not in chat.body  # no duplicate greeting after language selection
     assert backend.get_or_create_customer(WA_ID).name == "Ravi Kumar"
 
@@ -110,7 +118,7 @@ def test_missing_profile_name_greets_without_a_name(chat, backend, settings):
     settings.IVA_PLANNER_URL = PLANNER_URL
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["language.changed", "welcome.planner_intro", "welcome.browse_prompt"]
+    assert chat.keys == ["language.set_first"]
     assert backend.get_or_create_customer(WA_ID).name is None
 
 
@@ -126,18 +134,18 @@ def test_existing_name_is_never_overwritten(chat, backend):
     assert backend.get_or_create_customer(WA_ID).name == "Ravi"
 
 
-def test_unset_planner_url_skips_straight_to_main_menu(chat, backend):
+def test_unset_planner_url_gives_the_one_message_confirmation(chat, backend):
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["language.changed", "menu.body"]
+    assert chat.keys == ["language.set_first"]
     assert backend.get_or_create_customer(WA_ID).onboarding_complete is True
 
 
-def test_invalid_planner_url_skips_straight_to_main_menu(chat, settings):
+def test_invalid_planner_url_gives_the_one_message_confirmation(chat, settings):
     settings.IVA_PLANNER_URL = "http://not-https.example"
     chat.send("hi")
     chat.tap("LANGUAGE_SELECT:en")
-    assert chat.keys == ["language.changed", "menu.body"]
+    assert chat.keys == ["language.set_first"]
 
 
 def test_planner_row_in_main_menu_when_configured(chat, settings):

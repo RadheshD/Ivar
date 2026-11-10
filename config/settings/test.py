@@ -66,6 +66,9 @@ if not IVA_PSEUDONYM_KEY:
 # have configured locally. Tests that need images opt in explicitly via the Fake
 # Backend's ``image_base_url`` constructor argument.
 IVA_PRODUCT_IMAGE_BASE_URL = ""
+# Same reasoning: the welcome banner is off in tests whatever the developer's .env says.
+IVA_WELCOME_BANNER_URL = ""
+IVA_WELCOME_BANNER_FILE = ""  # no file, so no upload, in any test unless it opts in
 
 # Real-Redis tests (session store, per-customer lock) use this prefix in place of the
 # dev/prod "iva:" one, so a test run can never read, overwrite or leave behind dev keys

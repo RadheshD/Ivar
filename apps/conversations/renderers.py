@@ -88,7 +88,9 @@ def render(message: Outbound) -> dict:
             "body": {"text": truncate(message.body, INTERACTIVE_BODY_MAX)},
             "action": {"buttons": _reply_buttons(message.buttons)},
         }
-        if message.image_url:
+        if message.image_media_id:  # an uploaded media ID (WhatsApp's recommended way)
+            interactive["header"] = {"type": "image", "image": {"id": message.image_media_id}}
+        elif message.image_url:
             interactive["header"] = {"type": "image", "image": {"link": message.image_url}}
         return {"type": "interactive", "interactive": interactive}
     if isinstance(message, OutCarousel):

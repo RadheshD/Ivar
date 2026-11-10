@@ -67,6 +67,7 @@ from .catalog_order import (
 from .channel import (
     MAX_CAROUSEL_CARDS,
     MAX_ROWS,
+    WELCOME_BANNER_REF,
     Button,
     CarouselCard,
     Inbound,
@@ -124,7 +125,8 @@ NAME_MAX = 60
 ADDRESS_MIN = 10
 ADDRESS_MAX = 300
 QUICK_QUANTITIES = (1, 2, 3)
-LANGUAGE_BUTTONS = (("en", "English"), ("te", "తెలుగు"), ("hi", "हिंदी"))
+LANGUAGE_BUTTONS = (("en", "English"), ("te", "తెలుగు"), ("hi", "हिन्दी"))
+LANGUAGE_NAMES = dict(LANGUAGE_BUTTONS)  # each language written in its own script
 _REF_RE = re.compile(r"^[A-Za-z0-9_.\-]{1,64}$")
 # Suggestions a customer can confirm with one tap (they need no entity).
 _CONFIRMABLE = (
@@ -692,19 +694,35 @@ class ConversationEngine(RecommendFlow):
 
     # ------------------------------------------------------------------ onboarding
 
-    def _language_prompt(self, c: _Turn, *, greet: bool = False) -> OutButtons:
+    def _welcome_banner_url(self) -> str | None:
+        url = getattr(settings, "IVA_WELCOME_BANNER_URL", "") or ""
+        parsed = urlparse(url)
+        return url if parsed.scheme == "https" and parsed.netloc else None
+
+    @staticmethod
+    def _usable_name(raw: str | None) -> str:
+        """A name worth greeting: it must hold at least one letter or digit. A profile name
+        that is missing, blank, or only emoji/symbols ("🙂", "✨✨") is dropped."""
+        name = (raw or "").strip()
+        return name if any(unicodedata.category(ch)[0] in "LN" for ch in name) else ""
+
+    def _language_prompt(self, c: _Turn, *, greet: bool = False) -> OutButtons | OutProductCard:
         buttons = tuple(
             Button(build_reply_id(Intent.LANGUAGE_SELECT, code), title)
             for code, title in LANGUAGE_BUTTONS
         )
         if greet:
-            name = c.customer.name
+            # The first-time picker: a reply-button message with the welcome banner as its image
+            # header (the same mechanism and send-without-image fallback as product cards). Never
+            # on a re-prompt after unclear text and never on "Welcome back".
+            name = self._usable_name(c.customer.name)
             key = "language.prompt_greeting_named" if name else "language.prompt_greeting_unnamed"
-            body = t(c.lang, key, name=name or "")
-        else:
-            key = "language.prompt"
-            body = t(c.lang, key)
-        return OutButtons(body, buttons, key)
+            body = t(c.lang, key, name=name)
+            return OutProductCard(
+                body, buttons, self._welcome_banner_url(), key, image_ref=WELCOME_BANNER_REF
+            )
+        key = "language.prompt"
+        return OutButtons(t(c.lang, key), buttons, key)
 
     def _onboarding(self, c: _Turn, inbound: Inbound) -> list[Outbound]:
         s = c.session
@@ -727,8 +745,13 @@ class ConversationEngine(RecommendFlow):
                 s.state = State.LANGUAGE
                 return [self._language_prompt(c, greet=greet)]
             c.customer = self.backend.update_profile(c.customer.id, language=choice)
-            # the first choice is confirmed, in the chosen language, before the welcome
-            return [self._text(c, "language.changed"), *self._finish_onboarding(c)]
+            # ONE confirmation in the chosen language with a Menu button: no separate welcome
+            # message and menu message after it.
+            c.customer = self.backend.update_profile(c.customer.id, onboarding_complete=True)
+            s.state = State.MAIN_MENU
+            key = "language.set_first"
+            body = t(c.lang, key, lang_name=LANGUAGE_NAMES.get(choice, choice))
+            return [OutButtons(body, (self._menu_button(c),), key)]
         return self._finish_onboarding(c)
 
     def _diet_prompt(self, c: _Turn) -> list[Outbound]:
