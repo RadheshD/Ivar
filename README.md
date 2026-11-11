@@ -27,7 +27,7 @@ WhatsApp user ─► Meta Cloud API ─► POST /webhooks/whatsapp/   (signature
                               renderers ─► WhatsApp Cloud API reply
 ```
 
-- The LLM (none is configured yet) may only *propose* an intent; it never writes data or
+- The LLM (Groq, off by default) may only *propose* an intent; it never writes data or
   decides price, stock, payment or order status.
 - Message text is never stored or logged; phone numbers are masked in logs and
   pseudonymized (HMAC) in records.
@@ -58,11 +58,12 @@ points are Django settings and the Backend Port. There is no admin panel of any 
 
 ## Stage status
 
-S1–S4 (host project, WhatsApp webhook and Cloud API client, conversation engine, intent
-layer) are built and verified against PostgreSQL and Redis. The LLM provider is not yet
-chosen, so the intent layer runs on rules and fuzzy matching only. S5 (hardening:
-per-customer ordering, rate limiting, deploy check, end-to-end and failure tests) is in
-progress. See `CLAUDE.md`'s status table for the current detail.
+S1–S5 (host project, WhatsApp webhook and Cloud API client, conversation engine, intent
+layer, and hardening: per-customer ordering, rate limiting, deploy check, end-to-end and
+failure tests) are built and verified against PostgreSQL and Redis. The LLM provider is
+Groq: the fallback is built but off by default (`IVA_LLM_ENABLED` and
+`IVA_LLM_RECOMMEND_ENABLED` default to false), so the intent layer runs on rules and fuzzy
+matching unless it is switched on. See `CLAUDE.md`'s status table for the current detail.
 
 ## Security
 

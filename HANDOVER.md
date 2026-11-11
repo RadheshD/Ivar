@@ -300,9 +300,9 @@ each was introduced per `CLAUDE.md`/`ARCHITECTURE.md`.
 | `IVA_FUZZY_NUMBER_GUARD` | Never correct a word into a number word ("weight" -> "eight") | `true` (default, since 2026-10-07, owner-approved): the fuzzy stage once turned "weight" into "eight" and a quantity of 8. One existing test (`test_the_old_quoted_reply_is_unchanged_without_the_llm_layer`) was changed, with approval, to assert "weight" is never corrected into a quantity | Fuzzy guard (2026-10-07) |
 | `IVA_PRODUCT_IMAGE_BASE_URL` | Base URL the Fake Backend joins with a product's relative image path to build `image_url` | a real `https://` URL, or empty; unset/non-`https` means no product images (text-only cards) | Product cards (2026-09-29) |
 | `LOG_LEVEL` | Logging level | `INFO` | S1 |
-| `LLM_PROVIDER` | LLM provider name | empty = no LLM fallback (rules/fuzzy only); no provider chosen yet | S4 |
-| `LLM_API_KEY` | LLM provider API key | not yet defined in this repo (no provider chosen) | S4 |
-| `LLM_MODEL` | LLM model name | not yet defined in this repo (no provider chosen) | S4 |
+| `LLM_PROVIDER` | Legacy LLM provider name | leave empty; Groq is the chosen provider and is configured through the `IVA_LLM_*` settings and `GROQ_API_KEY` above (off by default) | S4 |
+| `LLM_API_KEY` | Legacy LLM provider API key | not defined in this repo; Groq uses `GROQ_API_KEY` above | S4 |
+| `LLM_MODEL` | Legacy LLM model name | not defined in this repo; Groq uses `IVA_LLM_MODEL` above | S4 |
 | `LLM_TIMEOUT_SECONDS` | LLM call timeout | default `5` if empty | S4 |
 | `WHATSAPP_ACCESS_TOKEN` | Meta Cloud API access token | required in production | S2 |
 | `WHATSAPP_APP_SECRET` | Verifies `X-Hub-Signature-256` on inbound webhooks | required in production | S2 |
@@ -412,8 +412,8 @@ wrapping `apps.conversations.retention.purge_old_messages` / `retention_days`)
    (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`,
    `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_API_VERSION`, `WHATSAPP_GRAPH_BASE_URL`),
    `DATABASE_URL`, `REDIS_URL`, `CELERY_BROKER_URL`, `CONVERSATION_REDIS_URL`,
-   `DJANGO_SECRET_KEY`, and LLM variables if/when a provider is chosen (none is chosen
-   in this repo yet — `CLAUDE.md` §Approved dependencies).
+   `DJANGO_SECRET_KEY`, and, only if the Groq fallback is to be switched on (off by default), the `IVA_LLM_*`
+   variables and `GROQ_API_KEY` (`CLAUDE.md` §Approved dependencies).
 6. Copy `IVA_PSEUDONYM_KEY` over **unchanged** from the existing deployment (section 6)
    — do not generate a new one.
 7. Confirm production settings refuse the Fake Backend: `config/settings/prod.py`'s
