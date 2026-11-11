@@ -141,6 +141,13 @@ MESSAGES = {
     "btn.continue_checkout": "Continue checkout",
     "cards.footer": "Want to see more, or head back to the menu?",
     "cards.stale": "Sorry, that item is no longer available.",
+    # Card redesign (2026-11-05): quantity step, confirmation, footer buttons.
+    "btn.see_more": "See more",
+    "btn.back_to_menu": "Back to menu",
+    "btn.add_more": "Add more",
+    "card.ask_qty": "How many {name} would you like? Tap a button or type a number.",
+    "card.qty_range": "Please choose a quantity from 1 to {max}.",
+    "card.added": "Added {qty} × {name}.\nCart total: {total}",
     # ------------------------------------------------------------------ cart
     "cart.added": "Added {qty} × {name}.",
     "cart.updated": "Updated {name} to {qty}.",

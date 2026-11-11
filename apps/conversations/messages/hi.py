@@ -142,6 +142,13 @@ MESSAGES = {
     "btn.continue_checkout": "चेकआउट जारी रखें",
     "cards.footer": "और देखना है, या मेन्यू पर वापस जाना है?",
     "cards.stale": "माफ़ कीजिए, वह वस्तु अभी उपलब्ध नहीं है।",
+    # Card redesign (2026-11-05). UNREVIEWED: DRAFT, needs native-speaker review.
+    "btn.see_more": "और देखें",
+    "btn.back_to_menu": "मेन्यू पर जाएँ",
+    "btn.add_more": "और जोड़ें",
+    "card.ask_qty": "{name} कितने चाहिए? बटन दबाएँ या संख्या लिखें।",
+    "card.qty_range": "कृपया 1 से {max} के बीच मात्रा चुनें।",
+    "card.added": "{qty} × {name} जोड़ दिया।\nकार्ट का कुल: {total}",
     # ------------------------------------------------------------------ cart
     "cart.added": "{qty} × {name} जोड़ दिया।",
     "cart.updated": "{name} को {qty} कर दिया।",

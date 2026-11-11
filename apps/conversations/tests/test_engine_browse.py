@@ -4,7 +4,7 @@ import pytest
 
 from apps.conversations.engine import CARD_PAGE_SIZE
 
-from .harness import LANGUAGES, PHRASES, WA_ID, in_script, onboard
+from .harness import LANGUAGES, PHRASES, WA_ID, in_script, onboard, tap_card_quantity
 
 
 def card_names(chat) -> set[str]:
@@ -101,7 +101,9 @@ def test_ambiguous_product_offers_a_results_list_then_a_card(chat, backend):
     card = chat.cards[0]
     add_id = next(b.id for b in card.buttons if b.title == "Add to cart")
     chat.tap(add_id)
-    assert chat.keys[0] == "cart.added"
+    assert chat.keys == ["card.ask_qty"]
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
     assert "Ivar Oats" in chat.body
 
 

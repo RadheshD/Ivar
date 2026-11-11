@@ -13,7 +13,7 @@ from apps.conversations.channel import MAX_ROWS, OutList
 from apps.conversations.renderers import render
 from apps.iva_common.money import format_money
 
-from .harness import WA_ID, onboard
+from .harness import WA_ID, onboard, tap_card_quantity
 
 SHOWCARD = "ACT:showcard:"
 
@@ -58,7 +58,8 @@ def test_single_result_card_adds_one(chat, backend):
     onboard(chat)
     chat.send("do you have makhana")
     chat.tap(chat.cards[0].buttons[0].id)
-    assert chat.keys == ["cart.added"]
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
     customer = backend.get_or_create_customer(WA_ID)
     assert [ln.quantity for ln in backend.get_cart(customer.id).lines] == [1]
 
@@ -191,7 +192,8 @@ def test_card_from_a_row_adds_to_the_cart(chat, backend):
     chat.send("protein")
     chat.tap(result_rows(chat)[0].id)
     chat.tap(chat.cards[0].buttons[0].id)
-    assert chat.keys == ["cart.added"]
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
     customer = backend.get_or_create_customer(WA_ID)
     assert len(backend.get_cart(customer.id).lines) == 1
 

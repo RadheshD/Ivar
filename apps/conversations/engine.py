@@ -58,6 +58,7 @@ from .backend_port import (
     ProductSummary,
     ProductUnavailable,
 )
+from .card_content import EXTRA_LINE_PROVIDERS, build_card_body, format_protein, parse_card_quantity
 from .catalog_order import (
     PORT_MAX_QUANTITY,
     OrderLine,
@@ -495,6 +496,10 @@ class ConversationEngine(RecommendFlow):
             # confirmation and payment) or a light "ok" (only where nothing is pending):
             # one reply, nothing else touched.
             return self._closing_reply(c, closing_intent, text)
+        if text and state is State.QUANTITY and (c.session.pending or {}).get("kind") == "cardqty":
+            typed = self._card_typed_quantity(c, text)
+            if typed is not None:
+                return typed
         if text and state is State.ONBOARD_DIET:  # changing the preference later
             diet = self._diet_from_text(text)
             if diet:
@@ -697,6 +702,9 @@ class ConversationEngine(RecommendFlow):
             return self._clarify(c, r.suggested_intent)
 
         # FALLBACK: a bare quantity completes what we were waiting for.
+        if pending and pending["kind"] == "cardqty":  # not a number: ask again, keep waiting
+            s.pending = pending
+            return [self._text(c, "qty.ask")]
         if pending and pending["kind"] in ("add", "update"):
             if e.quantity is not None:
                 if pending["kind"] == "add":
@@ -866,6 +874,10 @@ class ConversationEngine(RecommendFlow):
             return self._continue_shopping(c)
         elif name == "addcard" and arg:
             return self._card_add_to_cart(c, self._unref(c, arg))
+        elif name == "cardqty" and arg:
+            return self._card_quantity_tapped(c, arg)
+        elif name == "addmore":  # back to the same category cards the customer was browsing
+            return self._show_current_listing(c)
         elif name == "ordernow" and arg:
             return self._card_order_now(c, self._unref(c, arg))
         elif name == "addr" and arg:
@@ -1090,6 +1102,7 @@ class ConversationEngine(RecommendFlow):
                 return [self._diet_notice(c, "diet.hidden_all", query=category.name)]
             body = t(c.lang, "category.empty", category=category.name)
             return [OutButtons(body, (self._menu_button(c),), "category.empty")]
+        self._log_missing_photos(page)
         carousel_cards = self._carousel_cards(c, page)
         if carousel_cards is None:  # the current one-card-per-product page
             page = page[:CARD_PAGE_SIZE]
@@ -1210,15 +1223,36 @@ class ConversationEngine(RecommendFlow):
     def _card_text_and_buttons(
         self, c: _Turn, product: ProductSummary
     ) -> tuple[str, tuple[Button, ...]]:
-        lines = [product.name, self._money(product.price, product.currency)]
-        if not product.in_stock:
-            lines.append(t(c.lang, "product.out_of_stock_tag"))
         ref = self._ref(c, product.id)
         buttons = (
             Button(f"{ACT}addcard:{ref}", t(c.lang, "btn.add_to_cart")),
             Button(f"{ACT}ordernow:{ref}", t(c.lang, "btn.order_now")),
         )
-        return "\n".join(lines), buttons
+        return self._card_body(c, product), buttons
+
+    def _card_body(self, c: _Turn, product: ProductSummary) -> str:
+        """The ONE place a product card's text is built: name, price, then tags. Catalog
+        data only; a tag with no data is left out. To add a line later (for example a
+        benefit line) append a provider to ``card_content.EXTRA_LINE_PROVIDERS``."""
+        tags: list[str] = []
+        if product.diet_type in DIETS:
+            tags.append(t(c.lang, f"diet.{product.diet_type}"))
+        protein = format_protein(product.protein_g)
+        if protein is not None:
+            tags.append(t(c.lang, "product.protein", protein=protein))
+        if not product.in_stock:
+            tags.append(t(c.lang, "product.out_of_stock_tag"))
+        extra = [line for p in EXTRA_LINE_PROVIDERS if (line := p(product))]
+        return build_card_body(
+            product.name, self._money(product.price, product.currency), tags, extra
+        )
+
+    @staticmethod
+    def _log_missing_photos(page: list[ProductSummary]) -> None:
+        """Log (IDs only, never customer data) which products have no usable photo."""
+        missing = [p.id for p in page if not p.image_url or not p.image_url.startswith("https://")]
+        if missing:
+            logger.warning("engine: products without a usable photo ids=%s", missing)
 
     def _product_card(self, c: _Turn, product: ProductSummary) -> OutProductCard:
         body, buttons = self._card_text_and_buttons(c, product)
@@ -1266,8 +1300,8 @@ class ConversationEngine(RecommendFlow):
     def _cards_footer(self, c: _Turn, more: bool) -> OutButtons:
         buttons = []
         if more:
-            buttons.append(Button(f"{ACT}more", t(c.lang, "list.more")))
-        buttons.append(self._menu_button(c))
+            buttons.append(Button(f"{ACT}more", t(c.lang, "btn.see_more")))
+        buttons.append(self._button(c, Intent.CATEGORY_SELECT.value, "btn.back_to_menu"))
         return OutButtons(t(c.lang, "cards.footer"), tuple(buttons), "cards.footer")
 
     def _product_cards(
@@ -1475,23 +1509,71 @@ class ConversationEngine(RecommendFlow):
             body = t(c.lang, "product.unavailable", name=product.name)
             buttons = (self._menu_button(c), self._button(c, Intent.VIEW_CART.value, "btn.cart"))
             return [OutButtons(body, buttons, "product.unavailable")]
+        self._log_missing_photos([product])
         return [self._product_card(c, product)]
 
     def _card_add_to_cart(self, c: _Turn, product_id: str) -> list[Outbound]:
+        """ "Add to cart" on a card: re-check the product, then ask how many (buttons
+        1 / 2 / 3, or a typed number). Nothing is added until the quantity arrives."""
         try:
             product = self.backend.get_product(product_id)
             variant_id = self._card_default_variant(product)
-            cart = self.backend.add_item(c.customer.id, variant_id, 1)
         except (NotFound, ProductUnavailable):
             return self._card_stale(c)
+        s = c.session
+        s.pending = {"kind": "cardqty", "variant_id": variant_id}
+        s.state = State.QUANTITY
+        ref = self._ref(c, variant_id)
+        buttons = tuple(Button(f"{ACT}cardqty:{ref}:{n}", str(n)) for n in QUICK_QUANTITIES)
+        body = t(c.lang, "card.ask_qty", name=product.name)
+        return [OutButtons(body, buttons, "card.ask_qty")]
+
+    def _card_quantity_tapped(self, c: _Turn, arg: str) -> list[Outbound]:
+        """``ACT:cardqty:<variant ref>:<n>``. The variant comes from the button itself, so
+        an old quantity prompt still adds ITS product, never the latest one."""
+        ref, _, raw = arg.rpartition(":")
+        if not ref or not raw.isdecimal() or len(raw) > 3 or int(raw) < 1:
+            return [self._fallback(c)]
+        quantity = int(raw)
+        if quantity > PORT_MAX_QUANTITY:
+            return [self._text(c, "card.qty_range", max=PORT_MAX_QUANTITY)]
+        return self._card_quantity_apply(c, self._unref(c, ref), quantity)
+
+    def _card_typed_quantity(self, c: _Turn, text: str) -> list[Outbound] | None:
+        """A typed number while the card quantity prompt waits. ``None`` means the text is
+        not a bare number, so the normal intent layer handles it (menu, cart, a search)."""
+        parsed = parse_card_quantity(text, PORT_MAX_QUANTITY)
+        if parsed.status == "none":
+            return None
+        if parsed.status != "ok":  # zero or too many: ask again, keep waiting
+            return [self._text(c, "card.qty_range", max=PORT_MAX_QUANTITY)]
+        return self._card_quantity_apply(c, c.session.pending["variant_id"], parsed.value)
+
+    def _card_quantity_apply(self, c: _Turn, variant_id: str, quantity: int) -> list[Outbound]:
+        """Add ``quantity`` of the variant, then confirm with the cart total the Port
+        returned and the three next steps."""
+        try:
+            cart = self.backend.add_item(c.customer.id, variant_id, quantity)
+        except (NotFound, ProductUnavailable):
+            return self._card_stale(c)
+        except InvalidQuantity:  # the Port's own limit: ask again, keep waiting
+            return [self._text(c, "card.qty_range", max=PORT_MAX_QUANTITY)]
         self._cart_changed(c)
+        c.session.state = State.CART
         line = next((ln for ln in cart.lines if ln.variant_id == variant_id), None)
-        body = t(c.lang, "cart.added", qty=1, name=line.name if line else product.name)
-        buttons = (
-            self._button(c, Intent.VIEW_CART.value, "btn.cart"),
-            self._button(c, f"{ACT}continue", "btn.continue_shopping"),
+        body = t(
+            c.lang,
+            "card.added",
+            qty=quantity,
+            name=line.name if line else "",
+            total=self._money(cart.subtotal, cart.currency),
         )
-        return [OutButtons(body, buttons, "cart.added")]
+        buttons = (
+            self._button(c, Intent.CHECKOUT.value, "btn.checkout"),
+            self._button(c, f"{ACT}addmore", "btn.add_more"),
+            self._button(c, f"{ACT}edit", "btn.edit_cart"),
+        )
+        return [OutButtons(body, buttons, "card.added")]
 
     def _card_order_now(self, c: _Turn, product_id: str) -> list[Outbound]:
         try:

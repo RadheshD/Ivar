@@ -141,6 +141,13 @@ MESSAGES = {
     "btn.continue_checkout": "చెక్అవుట్ కొనసాగించు",
     "cards.footer": "మరిన్ని చూడాలా, లేదా మెనూకు వెళ్లాలా?",
     "cards.stale": "క్షమించండి, ఆ వస్తువు ఇప్పుడు అందుబాటులో లేదు.",
+    # Card redesign (2026-11-05). UNREVIEWED: DRAFT, needs native-speaker review.
+    "btn.see_more": "మరిన్ని చూడండి",
+    "btn.back_to_menu": "మెనూకు వెళ్ళండి",
+    "btn.add_more": "ఇంకా చేర్చు",
+    "card.ask_qty": "{name} ఎన్ని కావాలి? బటన్ నొక్కండి లేదా సంఖ్య టైప్ చేయండి.",
+    "card.qty_range": "దయచేసి 1 నుండి {max} మధ్య పరిమాణం ఎంచుకోండి.",
+    "card.added": "{qty} × {name} చేర్చబడింది.\nకార్ట్ మొత్తం: {total}",
     # ------------------------------------------------------------------ cart
     "cart.added": "{qty} × {name} చేర్చబడింది.",
     "cart.updated": "{name} ను {qty} కి మార్చాను.",

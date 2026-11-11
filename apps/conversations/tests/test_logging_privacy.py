@@ -4,7 +4,10 @@ Only masked IDs, state names, intents and error types may be logged. This runs a
 conversation, including failure paths, with every logger captured at DEBUG.
 """
 
+import ast
 import logging
+
+import pytest
 
 from apps.ai.llm import FakeLLMClient, LLMError
 from apps.ai.pipeline import IntentPipeline
@@ -80,12 +83,36 @@ def test_contact_profile_name_is_never_logged(chat, caplog):
     assert "Priya Sharma" not in logged
 
 
+def _catalog_ids(backend) -> set[str]:
+    found, offset = set(), 0
+    while True:
+        page, total = backend.list_products(limit=50, offset=offset)
+        found.update(p.id for p in page)
+        offset += len(page)
+        if not page or offset >= total:
+            return found
+
+
 def test_engine_logs_only_intent_stage_and_state(chat, caplog):
     onboard(chat)
     with caplog.at_level(logging.INFO, logger="apps.conversations.engine"):
         chat.send("do you have makhana")
     engine_lines = [r.getMessage() for r in caplog.records if r.name.endswith("engine")]
-    assert engine_lines == ["engine: intent=PRODUCT_SEARCH stage=rules state=MAIN_MENU"]
+    assert engine_lines[0] == "engine: intent=PRODUCT_SEARCH stage=rules state=MAIN_MENU"
+    # The only other line allowed is the photo log. It must be exactly the prefix plus a
+    # list of real catalog product IDs and nothing after it (no phone number, no text).
+    photo_lines = engine_lines[1:]
+    assert len(photo_lines) <= 1
+    prefix = "engine: products without a usable photo ids="
+    catalog = _catalog_ids(chat.engine.backend)
+    for line in photo_lines:
+        assert line.startswith(prefix), line
+        try:
+            ids = ast.literal_eval(line[len(prefix) :])  # fails on anything after the list
+        except (ValueError, SyntaxError):
+            pytest.fail(f"photo log line has more than a list of IDs: {line!r}")
+        assert isinstance(ids, list) and ids, line
+        assert all(isinstance(i, str) and i in catalog for i in ids), ids
 
 
 def test_order_history_paths_never_log_name_address_or_wa_id(chat, caplog):

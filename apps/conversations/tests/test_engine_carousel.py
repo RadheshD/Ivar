@@ -6,7 +6,7 @@ from apps.conversations.channel import Button, CarouselCard, OutCarousel, OutPro
 from apps.conversations.fake_backend import FakeBackend
 from apps.conversations.renderers import render
 
-from .harness import Chat, onboard, resize_category, write_fixture
+from .harness import Chat, onboard, resize_category, tap_card_quantity, write_fixture
 
 BASE = "https://cdn.example.test/assets/products/"
 CAFE = "CATEGORY_SELECT:cafe-favourites"  # 7 products in the fixture, under "Fresh & Ready to Eat"
@@ -42,7 +42,7 @@ def test_a_page_with_images_is_one_carousel_then_a_footer(make_engine, tmp_path)
     assert chat.carousel.body == "Here are our Café Favourites"
     assert len(chat.carousel.cards) == 7
     assert not chat.cards  # no separate cards alongside it
-    assert [b.title for b in chat.last[-1].buttons] == ["Menu"]  # all 7 shown: nothing more
+    assert [b.title for b in chat.last[-1].buttons] == ["Back to menu"]  # all 7 shown: nothing more
 
 
 def test_each_card_has_image_name_price_and_the_same_two_buttons(make_engine, tmp_path):
@@ -81,7 +81,7 @@ def test_ten_products_fill_one_carousel_with_no_show_more(make_engine, tmp_path)
     onboard(chat)
     chat.tap(CAFE)
     assert len(chat.carousel.cards) == 10
-    assert [b.title for b in chat.last[-1].buttons] == ["Menu"]
+    assert [b.title for b in chat.last[-1].buttons] == ["Back to menu"]
 
 
 def test_eleven_products_page_ten_then_a_single_card(make_engine, tmp_path):
@@ -96,7 +96,7 @@ def test_eleven_products_page_ten_then_a_single_card(make_engine, tmp_path):
     assert chat.carousel is None  # one product left: a plain card
     assert len(chat.cards) == 1
     assert first_line(chat.cards[0]) not in first  # never repeated, never dropped
-    assert [b.title for b in chat.last[-1].buttons] == ["Menu"]
+    assert [b.title for b in chat.last[-1].buttons] == ["Back to menu"]
 
 
 def test_twelve_products_second_page_is_a_two_card_carousel(make_engine, tmp_path):
@@ -240,8 +240,10 @@ def test_add_to_cart_from_a_carousel_card(make_engine, tmp_path):
     chat.tap(CAFE)
     name = first_line(chat.carousel.cards[0])
     chat.tap(_button(chat, name, "Add to cart"))
-    assert chat.keys == ["cart.added"]
-    assert chat.ids == ["VIEW_CART", "ACT:continue"]
+    assert chat.keys == ["card.ask_qty"]
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
+    assert chat.ids == ["CHECKOUT", "ACT:addmore", "ACT:edit"]
     assert cart_of(chat) == {name: 1}
 
 
@@ -293,7 +295,9 @@ def test_carousel_button_after_session_expiry_still_works(make_engine, tmp_path,
     chat.tap(CAFE)
     clock.advance(3601)
     chat.tap("ACT:addcard:ivar-muesli-bowl")
-    assert chat.keys == ["cart.added"]
+    assert chat.keys == ["card.ask_qty"]
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
 
 
 def test_show_more_after_a_carousel_continues_the_listing(make_engine, tmp_path):

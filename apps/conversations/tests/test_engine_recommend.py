@@ -28,7 +28,7 @@ from apps.conversations.channel import OutCarousel, OutProductCard
 from apps.conversations.engine import ConversationEngine
 from apps.conversations.messages import t
 
-from .harness import WA_ID, Chat, onboard
+from .harness import WA_ID, Chat, onboard, tap_card_quantity
 
 NOISE = "zork florp"  # no rule, no cue
 CUE = "suggest zork florp"  # contains the cue "suggest"
@@ -480,6 +480,7 @@ def test_the_cards_use_the_normal_add_to_cart_buttons(chat, groq):
     ask(chat, groq, CUE, ext(category_slug="protein-bowls"))
     assert any(i.startswith("ACT:addcard:") for i in chat.ids)
     chat.tap(next(i for i in chat.ids if i.startswith("ACT:addcard:")))
+    tap_card_quantity(chat, 1)
     assert len(cart_of(chat)) == 1  # added by the ordinary flow, after an explicit tap
 
 
@@ -509,3 +510,17 @@ def test_no_priced_or_nutrition_data_is_sent_to_the_model(chat, groq):
     ask(chat, groq, CUE, ext())
     sent = json.dumps(groq.extract_categories, ensure_ascii=False) + groq.extract_messages[0]
     assert "₹" not in sent and "classic-oats-bowl" not in sent and "Classic Oats" not in sent
+
+
+def test_add_more_after_a_recommendation_card_falls_back_to_the_main_menu(chat, groq):
+    onboard(chat)
+    ask(chat, groq, CUE, ext(category_slug="protein-bowls"))
+    chat.tap(next(i for i in chat.ids if i.startswith("ACT:addcard:")))
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
+    chat.tap("ACT:addmore")
+    # A recommendation is not a saved page (the flow clears the listing), so there is
+    # nothing to re-show: the customer gets the main menu.
+    assert chat.keys == ["menu.body"]
+    assert not any(isinstance(m, OutCarousel | OutProductCard) for m in chat.last)
+    assert groq.calls == 1  # "Add more" never calls the model again

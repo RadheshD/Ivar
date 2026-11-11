@@ -153,6 +153,14 @@ def onboard(chat: Chat, lang: str = "en", diet: str = "skip", name="Ravi", city=
     return chat
 
 
+def tap_card_quantity(chat: Chat, quantity: int = 1) -> Chat:
+    """Answer the card quantity prompt (reply buttons 1 / 2 / 3) with a tap."""
+    target = next(
+        i for i in chat.ids if i.startswith("ACT:cardqty:") and i.endswith(f":{quantity}")
+    )
+    return chat.tap(target)
+
+
 def checkout_to_payment(chat: Chat, lang: str = "en") -> str:
     """From an onboarded customer: add, check out with a new address, confirm."""
     chat.send(PHRASES[lang]["add"])

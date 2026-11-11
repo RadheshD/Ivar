@@ -12,7 +12,7 @@ from apps.ai.pipeline import IntentPipeline
 from apps.conversations.engine import ConversationEngine
 from apps.conversations.messages import t
 
-from .harness import Chat, onboard
+from .harness import Chat, onboard, tap_card_quantity
 from .test_engine_recommend import (  # noqa: F401  (local_cache is an autouse fixture)
     FakeGroq,
     cart_of,
@@ -174,6 +174,7 @@ def test_the_confirmed_bug_after_the_list_the_tap_asks_how_many(plain):
     assert "recommend.intro" in plain.keys and cart_of(plain) == {}
     assert BAD_QUANTITY not in plain.keys  # 300 is a price, never a quantity
     plain.tap(next(i for i in plain.ids if i.startswith("ACT:addcard:")))
+    tap_card_quantity(plain, 1)
     assert BAD_QUANTITY not in plain.keys and len(cart_of(plain)) == 1  # one, by an explicit tap
     assert list(cart_of(plain).values()) == [1]  # exactly one unit
     assert not {300, 299, 250} & set(cart_of(plain).values())  # no price number is a quantity

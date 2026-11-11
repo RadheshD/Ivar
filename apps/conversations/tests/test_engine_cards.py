@@ -4,7 +4,7 @@ import pytest
 
 from apps.conversations.fake_backend import FakeBackend
 
-from .harness import ADDRESS, WA_ID, Chat, onboard
+from .harness import ADDRESS, WA_ID, Chat, onboard, tap_card_quantity
 
 
 def cart_of(backend):
@@ -55,10 +55,13 @@ def test_add_to_cart_from_a_card_offers_view_cart_and_continue_shopping(chat, ba
     card = next(c for c in chat.cards if c.body.startswith("Seed Mix"))
     add_id = next(b.id for b in card.buttons if b.title == "Add to cart")
     chat.tap(add_id)
-    assert chat.keys == ["cart.added"]
+    assert chat.keys == ["card.ask_qty"]  # nothing is added until the quantity arrives
+    assert cart_of(backend) == {}
+    tap_card_quantity(chat, 1)
+    assert chat.keys == ["card.added"]
     assert "Seed Mix" in chat.body
     assert cart_of(backend) == {"Seed Mix": 1}
-    assert chat.ids == ["VIEW_CART", "ACT:continue"]
+    assert chat.ids == ["CHECKOUT", "ACT:addmore", "ACT:edit"]
 
 
 def test_continue_shopping_shows_the_group_category_list_not_the_cards_again(chat):
@@ -158,5 +161,7 @@ def test_valid_button_after_session_expiry_still_works(chat, clock, backend):
     chat.tap("CATEGORY_SELECT:nuts-seeds-snacks")
     clock.advance(3601)  # session gone, but the product itself is still real
     chat.tap("ACT:addcard:seed-mix")
-    assert chat.keys == ["cart.added"]
+    assert chat.keys == ["card.ask_qty"]
+    tap_card_quantity(chat, 1)  # the quantity buttons carry the product: works after expiry too
+    assert chat.keys == ["card.added"]
     assert cart_of(backend) == {"Seed Mix": 1}
